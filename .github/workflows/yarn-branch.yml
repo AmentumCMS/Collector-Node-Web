@@ -261,7 +261,7 @@ jobs:
         run: cp -v *.md ISO/
 
       - name: Show Artifacts
-        run: ls -Alh ISO/*tgz*
+        run: ls -Alht ISO/*tgz*
 
       - name: ISO Table of contents
         run: |
@@ -292,7 +292,7 @@ jobs:
             ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
 
       - name: Show ISO & Hash
-        run: ls -Alh *.iso*
+        run: ls -Alht *.iso*
 
       - name: Upload iso artifact
         uses: actions/upload-artifact@v4

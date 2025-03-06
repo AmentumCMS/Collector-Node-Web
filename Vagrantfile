@@ -132,7 +132,7 @@ Vagrant.configure("2") do |config|
     yarn set version 4.0.2
 
     echo -e "\nRunning local collection process\n"
-    git clone https://github.com/AmentumServices/Collector-Node-Web.git
+    git clone https://github.com/amentumcms/Collector-Node-Web.git
     cd Collector-Node-Web && export XDG_DATA_HOME=$PWD
     echo -e "\nRunning verdaccio\n"
     yarn dlx verdaccio >\
