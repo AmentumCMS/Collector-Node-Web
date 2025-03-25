@@ -422,7 +422,7 @@ jobs:
         run: ls -lh *tgz* *iso*
 
       - name: Send Files to Sharepoint
-        uses: amentumcms/sharepoint-file-upload-action@pappasjfed-patch-1
+        uses: amentumcms/sharepoint-file-upload-action@main
         with:
           file_path: "*tgz*"
           host_name: "${{ secrets.SHAREPOINT_HOST }}"
@@ -435,7 +435,7 @@ jobs:
           graph_endpoint: "graph.microsoft.us"
 
       - name: Send ISO to Sharepoint
-        uses: amentumcms/sharepoint-file-upload-action@pappasjfed-patch-1
+        uses: amentumcms/sharepoint-file-upload-action@main
         with:
           file_path: "*.iso*"
           host_name: "${{ secrets.SHAREPOINT_HOST }}"
