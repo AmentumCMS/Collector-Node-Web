@@ -5,7 +5,7 @@ on:
     branches:
       - main
   schedule:
-    - cron: "0 0 * * 1" # Update weekly on Monday Midnight
+    - cron: "0 0 1 * *" # Update on First of month at midnight UTC
   workflow_dispatch:
 
 jobs:
@@ -70,6 +70,9 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: true
 
       - name: Use Node.js ${{ needs.Setup.outputs.v18 }}
         uses: actions/setup-node@v4
@@ -83,7 +86,7 @@ jobs:
           echo "Node Version: $(node -v)"
           echo "Yarn version: $(yarn -v)"
 
-      - name: Set up git
+      - name: Setup Git
         run: |
           git config user.name "$(git log -n 1 --pretty=format:%an)"
           git config user.email "$(git log -n 1 --pretty=format:%ae)"
