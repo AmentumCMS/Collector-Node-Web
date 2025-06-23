@@ -5,7 +5,7 @@ on:
     branches:
       - main
   schedule:
-    - cron: "0 0 * * 1" # Update weekly on Monday Midnight
+    - cron: "0 0 1 * *" # Update on First of month at midnight UTC
   workflow_dispatch:
 
 jobs:
@@ -70,6 +70,9 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: true
 
       - name: Use Node.js ${{ needs.Setup.outputs.v18 }}
         uses: actions/setup-node@v4
@@ -83,7 +86,7 @@ jobs:
           echo "Node Version: $(node -v)"
           echo "Yarn version: $(yarn -v)"
 
-      - name: Set up git
+      - name: Setup Git
         run: |
           git config user.name "$(git log -n 1 --pretty=format:%an)"
           git config user.email "$(git log -n 1 --pretty=format:%ae)"
@@ -263,7 +266,7 @@ jobs:
         run: cp -v *.md ISO/
 
       - name: Show Artifacts
-        run: ls -Alh ISO/*tgz*
+        run: ls -Alht ISO/*tgz*
 
       - name: ISO Table of contents
         run: |
@@ -294,7 +297,7 @@ jobs:
             ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
 
       - name: Show ISO & Hash
-        run: ls -Alh *.iso*
+        run: ls -Alht *.iso*
 
       - name: Upload iso artifact
         uses: actions/upload-artifact@v4
@@ -422,7 +425,7 @@ jobs:
         run: ls -lh *tgz* *iso*
 
       - name: Send Files to Sharepoint
-        uses: amentumservices/sharepoint-file-upload-action@pappasjfed-patch-1
+        uses: amentumcms/sharepoint-file-upload-action@main
         with:
           file_path: "*tgz*"
           host_name: "${{ secrets.SHAREPOINT_HOST }}"
@@ -435,7 +438,7 @@ jobs:
           graph_endpoint: "graph.microsoft.us"
 
       - name: Send ISO to Sharepoint
-        uses: amentumservices/sharepoint-file-upload-action@pappasjfed-patch-1
+        uses: amentumcms/sharepoint-file-upload-action@main
         with:
           file_path: "*.iso*"
           host_name: "${{ secrets.SHAREPOINT_HOST }}"
