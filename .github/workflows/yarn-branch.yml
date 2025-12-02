@@ -108,6 +108,11 @@ jobs:
           echo -e "\nRunning Yarn"
           yarn install
 
+      - name: Check yarn caches
+        run: |
+          yarn cache list | grep lodash
+          yarn cache list
+
       - name: Listings
         run: |
           echo -e "\nListing verdaccio/*"
