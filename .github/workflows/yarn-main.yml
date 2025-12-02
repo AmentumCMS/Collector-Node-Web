@@ -317,6 +317,7 @@ jobs:
         run: |
           echo -e "Setup Yarn"
           sudo corepack enable
+          yarn set version stable
           echo -e "Configure Yarn for inaccessable network"
           npm set registry http://localhost:4873/
           yarn config set npmRegistryServer http://localhost:4873/
