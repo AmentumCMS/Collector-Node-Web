@@ -44,15 +44,17 @@ jobs:
           v18=$(get_version 18)
           v20=$(get_version 20)
           v22=$(get_version 22)
+          v24=$(get_version 24)
 
           echo "The latest Node.js v18 version is: $v18"
           echo "The latest Node.js v20 version is: $v20"
           echo "The latest Node.js v22 version is: $v22"
+          echo "The latest Node.js v24 version is: $v24"
 
           echo "v18=${v18}" >> $GITHUB_OUTPUT
           echo "v20=${v20}" >> $GITHUB_OUTPUT
           echo "v22=${v22}" >> $GITHUB_OUTPUT
-
+          echo "v24=${v24}" >> $GITHUB_OUTPUT
           echo -e "\nFile:\n$GITHUB_OUTPUT"
           echo "Values:"
           cat $GITHUB_OUTPUT
@@ -280,7 +282,7 @@ jobs:
       pull-requests: read
     strategy:
       matrix:
-        node-version: [18.x, 20.x, 22.x]
+        node-version: [18.x, 20.x, 22.x, 24.x]
     steps:
       - name: Install isomd5sum
         run: |
