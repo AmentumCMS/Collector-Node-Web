@@ -321,7 +321,8 @@ jobs:
           npm set registry http://localhost:4873/
           yarn config set npmRegistryServer http://localhost:4873/
           echo -e "\nRun yarn install\n"
-          yarn install
+          yarn install --immutable  --immutable-cache
+          corepack pack -o .yarn/yarn-pack.tar.gz
 
       - name: Run yarn
         run: |
