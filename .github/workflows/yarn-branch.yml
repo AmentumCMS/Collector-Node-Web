@@ -106,7 +106,7 @@ jobs:
           curl http://localhost:4873 -o test.html
           sleep 1
           echo -e "\nRunning Yarn"
-          yarn install
+          npm install
 
       - name: Listings
         run: |
@@ -355,7 +355,7 @@ jobs:
           npm set registry http://localhost:4873/
           yarn config set npmRegistryServer http://localhost:4873/
           echo -e "\nRun yarn install --immutable\n"
-          yarn install --immutable
+          npm install
 
       - name: Run yarn
         run: |
