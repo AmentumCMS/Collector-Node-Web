@@ -18,10 +18,10 @@ jobs:
       - name: Get current date
         id: DATE
         run: |
-          echo "Getting Date"
+          echo -n "Getting Date: "
           echo "DATE=$(date '+%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
-          echo -e "\nFile:\n$GITHUB_OUTPUT"
-          echo "Values:"
+          echo -e "$DATE\nFile:\n$GITHUB_OUTPUT"
+          echo -e "\nValues:"
           cat $GITHUB_OUTPUT
 
       - name: Get current node versions
