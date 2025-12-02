@@ -309,7 +309,7 @@ jobs:
         run: sudo mount -v -o loop ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso /mnt
 
       - name: UnTARchive Yarn Cache
-        run: tar -xzvf /mnt/yarn-cache-${{ needs.Setup.outputs.Date }}.tgz
+        run: tar -xzvf /mnt/${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz
 
       - name: Run yarn install
         run: |
