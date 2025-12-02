@@ -81,6 +81,9 @@ jobs:
 
       - name: Enable Corepack
         run: |
+          echo -e "\nUpdating apt repositories"
+          sudo apt-get update -y
+
           echo -e "\nEnabling Corepack for Yarn"
           sudo corepack enable
           echo "Node Version: $(node -v)"
@@ -110,119 +113,75 @@ jobs:
           echo -e "\nChecking Connectivity\n"
           curl http://localhost:4873 -o test.html
           sleep 1
+
           echo -e "\nRunning Yarn"
           yarn install
 
       - name: Listings
         run: |
           echo -e "\nListing verdaccio/*"
-          ls -Alht verdaccio/*
+          ls -1Ssh verdaccio/*
           echo -e "\nListing Consumption"
-          du -chd0 .yarn node_modules verdaccio/*
+          du -chd0 node_modules verdaccio/*
 
       - name: TARchive verdaccio storage directory
         run: |
-          ls -Alht verdaccio/*
-          tar -cvzf verdaccio-${{ needs.Setup.outputs.Date }}.tgz \
+          tar -cvI pigz -f ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz \
             verdaccio \
-            | tee verdaccio-${{ needs.Setup.outputs.Date }}.tgz.txt
+            | tee ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz.txt
 
       - name: TARchive verdaccio storage directory SHA HASH
         run: |
-          sha256sum -b verdaccio-${{ needs.Setup.outputs.Date }}.tgz | tee \
-            verdaccio-${{ needs.Setup.outputs.Date }}.tgz.sha
+          sha256sum -b ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz | tee \
+            ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz.sha
       
       - name: TARchive node_modules directory
         run: |
-          ls -lAhS ${{ github.workspace }}
-          tar -cvzf node-modules-${{ needs.Setup.outputs.Date }}.tgz \
+          tar -cvI pigz -f ${{ vars.COLLECTOR }}-node-modules-${{ needs.Setup.outputs.Date }}.tgz \
             node_modules yarn.lock \
-            | tee node-modules-${{ needs.Setup.outputs.Date }}.tgz.txt
+            | tee ${{ vars.COLLECTOR }}-node-modules-${{ needs.Setup.outputs.Date }}.tgz.txt
 
-      - name: TARchive verdaccio storage directory SHA HASH
+      - name: TARchive node_modules directory SHA HASH
         run: |
-          sha256sum -b node-modules-${{ needs.Setup.outputs.Date }}.tgz | tee \
-            node-modules-${{ needs.Setup.outputs.Date }}.tgz.sha
+          sha256sum -b ${{ vars.COLLECTOR }}-node-modules-${{ needs.Setup.outputs.Date }}.tgz | tee \
+            ${{ vars.COLLECTOR }}-node-modules-${{ needs.Setup.outputs.Date }}.tgz.sha
 
       - name: TARchive yarn cache directory
         run: |
-          ls -lAhS ${{ github.workspace }}
-          tar -cvzf yarn-cache-${{ needs.Setup.outputs.Date }}.tgz \
+          tar -cvI pigz -f ${{ vars.COLLECTOR }}-yarn-cache-${{ needs.Setup.outputs.Date }}.tgz \
             .yarn yarn.lock \
-            | tee yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.txt
+            | tee ${{ vars.COLLECTOR }}-yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.txt
 
       - name: TARchive verdaccio storage directory SHA HASH
         run: |
-          sha256sum -b yarn-cache-${{ needs.Setup.outputs.Date }}.tgz | tee \
-            yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.sha
+          sha256sum -b ${{ vars.COLLECTOR }}-yarn-cache-${{ needs.Setup.outputs.Date }}.tgz | tee \
+            ${{ vars.COLLECTOR }}-yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.sha
 
-      - name: Upload verdaccio artifact
+      - name: Upload verdaccio artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: verdaccio-${{ needs.Setup.outputs.Date }}.tgz
-          path: verdaccio-${{ needs.Setup.outputs.Date }}.tgz
+          name: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz
+          path: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz*
           if-no-files-found: error
 
-      - name: Upload verdaccio ToC artifact
+      - name: Upload yarn-cache artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: verdaccio-${{ needs.Setup.outputs.Date }}.tgz.txt
-          path: verdaccio-${{ needs.Setup.outputs.Date }}.tgz.txt
+          name: ${{ vars.COLLECTOR }}-yarn-cache-${{ needs.Setup.outputs.Date }}.tgz
+          path: ${{ vars.COLLECTOR }}-yarn-cache-${{ needs.Setup.outputs.Date }}.tgz*
           if-no-files-found: error
 
-      - name: Upload verdaccio SHA artifact
+      - name: Upload node-modules artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: verdaccio-${{ needs.Setup.outputs.Date }}.tgz.sha
-          path: verdaccio-${{ needs.Setup.outputs.Date }}.tgz.sha
+          name: ${{ vars.COLLECTOR }}-node-modules-${{ needs.Setup.outputs.Date }}.tgz
+          path: ${{ vars.COLLECTOR }}-node-modules-${{ needs.Setup.outputs.Date }}.tgz*
           if-no-files-found: error
 
-      - name: Upload yarn-cache artifact
+      - name: Upload Verdaccio Logs
         uses: actions/upload-artifact@v4
         with:
-          name: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz
-          path: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz
-          if-no-files-found: error
-
-      - name: Upload yarn-cache ToC artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.txt
-          path: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.txt
-          if-no-files-found: error
-
-      - name: Upload yarn-cache SHA artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.sha
-          path: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.sha
-          if-no-files-found: error
-
-      - name: Upload node-modules artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: node-modules-${{ needs.Setup.outputs.Date }}.tgz
-          path: node-modules-${{ needs.Setup.outputs.Date }}.tgz
-          if-no-files-found: error
-
-      - name: Upload node-modules ToC artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: node-modules-${{ needs.Setup.outputs.Date }}.tgz.txt
-          path: node-modules-${{ needs.Setup.outputs.Date }}.tgz.txt
-          if-no-files-found: error
-      
-      - name: Upload node-modules SHA artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: node-modules-${{ needs.Setup.outputs.Date }}.tgz.sha
-          path: node-modules-${{ needs.Setup.outputs.Date }}.tgz.sha
-          if-no-files-found: error
-
-      - name: Upload Logs
-        uses: actions/upload-artifact@v4
-        with:
-          name: Logs-${{ needs.Setup.outputs.Date }}.log
+          name: Verdaccio-Logs-${{ needs.Setup.outputs.Date }}.log
           path: "verdaccio/*.log"
 
   MakeISO:
@@ -297,16 +256,16 @@ jobs:
             ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
 
       - name: Show ISO & Hash
-        run: ls -Alht *.iso*
+        run: ls -1Ssh *.iso*
 
-      - name: Upload iso artifact
+      - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
           name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
           path: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
           if-no-files-found: error
 
-      - name: Upload iso sha artifact
+      - name: Upload ISO SHA
         uses: actions/upload-artifact@v4
         with:
           name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
@@ -384,7 +343,14 @@ jobs:
           merge-multiple: true
 
       - name: Show Artifacts
-        run: ls -lh *tgz* *iso*
+        run: |
+          echo "Directory Listing:\n$(ls -1Ssh ${{ vars.COLLECTOR }}-*.*)"
+          echo -e "\nDirectory Size:$(du -chd0 ${{ vars.COLLECTOR }}-*.*)"
+
+      - name: Set up git
+        run: |
+          git config user.name "$(git log -n 1 --pretty=format:%an)"
+          git config user.email "$(git log -n 1 --pretty=format:%ae)"
 
       - name: Create tag
         uses: rickstaa/action-create-tag@v1
@@ -393,7 +359,7 @@ jobs:
           tag: ${{ needs.Setup.outputs.Date }}
           github_token: ${{secrets.GITHUB_TOKEN}}
           tag_exists_error: false
-          message: "Release for node-modules ${{ needs.Setup.outputs.Date }} run"
+          message: "Release for ${{ needs.Setup.outputs.Date }} run"
 
       - name: Create Release
         id: create_release
@@ -422,30 +388,19 @@ jobs:
           merge-multiple: true
 
       - name: Show Artifacts
-        run: ls -lh *tgz* *iso*
+        run: |
+          echo "Directory Listing:\n$(ls -1Ssh ${{ vars.COLLECTOR }}-*.*)"
+          echo -e "\nDirectory Size:$(du -chd0 ${{ vars.COLLECTOR }}-*.*)"
 
       - name: Send Files to Sharepoint
-        uses: amentumcms/sharepoint-file-upload-action@main
+        uses: amentumservices/sharepoint-file-upload-action@main
         with:
-          file_path: "*tgz*"
-          host_name: "${{ secrets.SHAREPOINT_HOST }}"
-          site_name: "${{ secrets.SHAREPOINT_SITE }}"
-          upload_path: "${{ secrets.SHAREPOINT_BASEPATH }}/${{ vars.COLLECTOR }}/${{ needs.Setup.outputs.Date }}"
+          file_path: "${{ vars.COLLECTOR }}-*.*"
+          host_name: ${{ secrets.SHAREPOINT_HOST }}
+          site_name: ${{ secrets.SHAREPOINT_SITE }}
+          upload_path: '${{ secrets.SHAREPOINT_BASEPATH }}/${{ vars.COLLECTOR }}/${{ needs.Setup.outputs.Date }}'
           tenant_id: ${{ secrets.SHAREPOINT_TENANT_ID }}
           client_id: ${{ secrets.SHAREPOINT_APP_ID }}
           client_secret: ${{ secrets.SHAREPOINT_APP_SECRET }}
-          login_endpoint: "login.microsoftonline.us"
-          graph_endpoint: "graph.microsoft.us"
-
-      - name: Send ISO to Sharepoint
-        uses: amentumcms/sharepoint-file-upload-action@main
-        with:
-          file_path: "*.iso*"
-          host_name: "${{ secrets.SHAREPOINT_HOST }}"
-          site_name: "${{ secrets.SHAREPOINT_SITE }}"
-          upload_path: "${{ secrets.SHAREPOINT_BASEPATH }}/${{ vars.COLLECTOR }}/${{ needs.Setup.outputs.Date }}"
-          tenant_id: ${{ secrets.SHAREPOINT_TENANT_ID }}
-          client_id: ${{ secrets.SHAREPOINT_APP_ID }}
-          client_secret: ${{ secrets.SHAREPOINT_APP_SECRET }}
-          login_endpoint: "login.microsoftonline.us"
-          graph_endpoint: "graph.microsoft.us"
+          login_endpoint: 'login.microsoftonline.us'
+          graph_endpoint: 'graph.microsoft.us'

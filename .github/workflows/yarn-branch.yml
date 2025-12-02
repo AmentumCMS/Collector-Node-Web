@@ -68,6 +68,9 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: true
 
       - name: Use Node.js ${{ needs.Setup.outputs.v18 }}
         uses: actions/setup-node@v4
@@ -76,12 +79,15 @@ jobs:
 
       - name: Enable Corepack
         run: |
+          echo -e "\nUpdating apt repositories"
+          sudo apt-get update -y
+
           echo -e "\nEnabling Corepack for Yarn"
           sudo corepack enable
           echo "Node Version: $(node -v)"
           echo "Yarn version: $(yarn -v)"
 
-      - name: Set up git
+      - name: Setup Git
         run: |
           git config user.name "$(git log -n 1 --pretty=format:%an)"
           git config user.email "$(git log -n 1 --pretty=format:%ae)"
@@ -105,119 +111,75 @@ jobs:
           echo -e "\nChecking Connectivity\n"
           curl http://localhost:4873 -o test.html
           sleep 1
+
           echo -e "\nRunning Yarn"
           yarn install
 
       - name: Listings
         run: |
           echo -e "\nListing verdaccio/*"
-          ls -Alht verdaccio/*
+          ls -1Ssh verdaccio/*
           echo -e "\nListing Consumption"
-          du -chd0 .yarn node_modules verdaccio/*
+          du -chd0 node_modules verdaccio/*
 
       - name: TARchive verdaccio storage directory
         run: |
-          ls -Alht verdaccio/*
-          tar -cvzf verdaccio-${{ needs.Setup.outputs.Date }}.tgz \
+          tar -cvI pigz -f ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz \
             verdaccio \
-            | tee verdaccio-${{ needs.Setup.outputs.Date }}.tgz.txt
+            | tee ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz.txt
 
       - name: TARchive verdaccio storage directory SHA HASH
         run: |
-          sha256sum -b verdaccio-${{ needs.Setup.outputs.Date }}.tgz | tee \
-            verdaccio-${{ needs.Setup.outputs.Date }}.tgz.sha
+          sha256sum -b ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz | tee \
+            ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz.sha
       
       - name: TARchive node_modules directory
         run: |
-          ls -lAhS ${{ github.workspace }}
-          tar -cvzf node-modules-${{ needs.Setup.outputs.Date }}.tgz \
+          tar -cvI pigz -f ${{ vars.COLLECTOR }}-node-modules-${{ needs.Setup.outputs.Date }}.tgz \
             node_modules yarn.lock \
-            | tee node-modules-${{ needs.Setup.outputs.Date }}.tgz.txt
+            | tee ${{ vars.COLLECTOR }}-node-modules-${{ needs.Setup.outputs.Date }}.tgz.txt
 
-      - name: TARchive verdaccio storage directory SHA HASH
+      - name: TARchive node_modules directory SHA HASH
         run: |
-          sha256sum -b node-modules-${{ needs.Setup.outputs.Date }}.tgz | tee \
-            node-modules-${{ needs.Setup.outputs.Date }}.tgz.sha
+          sha256sum -b ${{ vars.COLLECTOR }}-node-modules-${{ needs.Setup.outputs.Date }}.tgz | tee \
+            ${{ vars.COLLECTOR }}-node-modules-${{ needs.Setup.outputs.Date }}.tgz.sha
 
       - name: TARchive yarn cache directory
         run: |
-          ls -lAhS ${{ github.workspace }}
-          tar -cvzf yarn-cache-${{ needs.Setup.outputs.Date }}.tgz \
+          tar -cvI pigz -f ${{ vars.COLLECTOR }}-yarn-cache-${{ needs.Setup.outputs.Date }}.tgz \
             .yarn yarn.lock \
-            | tee yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.txt
+            | tee ${{ vars.COLLECTOR }}-yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.txt
 
       - name: TARchive verdaccio storage directory SHA HASH
         run: |
-          sha256sum -b yarn-cache-${{ needs.Setup.outputs.Date }}.tgz | tee \
-            yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.sha
+          sha256sum -b ${{ vars.COLLECTOR }}-yarn-cache-${{ needs.Setup.outputs.Date }}.tgz | tee \
+            ${{ vars.COLLECTOR }}-yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.sha
 
-      - name: Upload verdaccio artifact
+      - name: Upload verdaccio artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: verdaccio-${{ needs.Setup.outputs.Date }}.tgz
-          path: verdaccio-${{ needs.Setup.outputs.Date }}.tgz
+          name: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz
+          path: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz*
           if-no-files-found: error
 
-      - name: Upload verdaccio ToC artifact
+      - name: Upload yarn-cache artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: verdaccio-${{ needs.Setup.outputs.Date }}.tgz.txt
-          path: verdaccio-${{ needs.Setup.outputs.Date }}.tgz.txt
+          name: ${{ vars.COLLECTOR }}-yarn-cache-${{ needs.Setup.outputs.Date }}.tgz
+          path: ${{ vars.COLLECTOR }}-yarn-cache-${{ needs.Setup.outputs.Date }}.tgz*
           if-no-files-found: error
 
-      - name: Upload verdaccio SHA artifact
+      - name: Upload node-modules artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: verdaccio-${{ needs.Setup.outputs.Date }}.tgz.sha
-          path: verdaccio-${{ needs.Setup.outputs.Date }}.tgz.sha
+          name: ${{ vars.COLLECTOR }}-node-modules-${{ needs.Setup.outputs.Date }}.tgz
+          path: ${{ vars.COLLECTOR }}-node-modules-${{ needs.Setup.outputs.Date }}.tgz*
           if-no-files-found: error
 
-      - name: Upload yarn-cache artifact
+      - name: Upload Verdaccio Logs
         uses: actions/upload-artifact@v4
         with:
-          name: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz
-          path: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz
-          if-no-files-found: error
-
-      - name: Upload yarn-cache ToC artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.txt
-          path: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.txt
-          if-no-files-found: error
-
-      - name: Upload yarn-cache SHA artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.sha
-          path: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.sha
-          if-no-files-found: error
-
-      - name: Upload node-modules artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: node-modules-${{ needs.Setup.outputs.Date }}.tgz
-          path: node-modules-${{ needs.Setup.outputs.Date }}.tgz
-          if-no-files-found: error
-
-      - name: Upload node-modules ToC artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: node-modules-${{ needs.Setup.outputs.Date }}.tgz.txt
-          path: node-modules-${{ needs.Setup.outputs.Date }}.tgz.txt
-          if-no-files-found: error
-      
-      - name: Upload node-modules SHA artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: node-modules-${{ needs.Setup.outputs.Date }}.tgz.sha
-          path: node-modules-${{ needs.Setup.outputs.Date }}.tgz.sha
-          if-no-files-found: error
-
-      - name: Upload Logs
-        uses: actions/upload-artifact@v4
-        with:
-          name: Logs-${{ needs.Setup.outputs.Date }}.log
+          name: Verdaccio-Logs-${{ needs.Setup.outputs.Date }}.log
           path: "verdaccio/*.log"
 
   MakeISO:
@@ -292,16 +254,16 @@ jobs:
             ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
 
       - name: Show ISO & Hash
-        run: ls -Alht *.iso*
+        run: ls -1Ssh *.iso*
 
-      - name: Upload iso artifact
+      - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
           name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
           path: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
           if-no-files-found: error
 
-      - name: Upload iso sha artifact
+      - name: Upload ISO SHA
         uses: actions/upload-artifact@v4
         with:
           name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
@@ -379,7 +341,9 @@ jobs:
           merge-multiple: true
 
       - name: Show Artifacts
-        run: ls -lh *tgz* *iso*
+        run: |
+          echo "Directory Listing:\n$(ls -1Ssh ${{ vars.COLLECTOR }}-*.*)"
+          echo -e "\nDirectory Size:$(du -chd0 ${{ vars.COLLECTOR }}-*.*)"
 
   Sharepoint:
     runs-on: ubuntu-24.04
@@ -394,4 +358,6 @@ jobs:
           merge-multiple: true
 
       - name: Show Artifacts
-        run: ls -lh *tgz* *iso*
+        run: |
+          echo "Directory Listing:\n$(ls -1Ssh ${{ vars.COLLECTOR }}-*.*)"
+          echo -e "\nDirectory Size:$(du -chd0 ${{ vars.COLLECTOR }}-*.*)"
