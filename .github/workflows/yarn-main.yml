@@ -236,7 +236,7 @@ jobs:
       - name: Generate Comprehensive Artifacts Hash File
         run: |
           cd ISO
-          sha256sum -b * vscode/* | tee \
+          sha256sum -b * vscode/* runtimes/* | tee \
             ../${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.sha
           cd -
           cp -v ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.??? ISO/
