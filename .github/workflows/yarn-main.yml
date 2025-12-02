@@ -238,8 +238,10 @@ jobs:
 
       - name: Generate Comprehensive Artifacts Hash File
         run: |
-          sha256sum -b ISO ISO/vscode | tee \
-            ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.sha
+          cd ISO
+          sha256sum -b * vscode/* | tee \
+            ../${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.sha
+          cd -
           cp -v ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.??? ISO/
 
       - name: Upload iso ToC artifact
