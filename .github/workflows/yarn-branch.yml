@@ -106,7 +106,7 @@ jobs:
           curl http://localhost:4873 -o test.html
           sleep 1
           echo -e "\nRunning Yarn"
-          yarn install --refresh-lockfile
+          yarn install --refresh-lockfile --registry http://localhost:4873 --verbose
 
       - name: Listings
         run: |
