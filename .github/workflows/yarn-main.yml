@@ -103,7 +103,7 @@ jobs:
           yarn dlx verdaccio >\
             verdaccio/verdaccio.log 2>\
             verdaccio/verdaccio-err.log &
-          tail -f verdaccio/verdaccio.log & P=$! && sleep 30 && kill -9 $P
+          tail -f verdaccio/verdaccio.log & P=$! && sleep 20 && kill -9 $P
           echo -e "\nTailing errors\n" &&\
           tail verdaccio/verdaccio-err.log
 
