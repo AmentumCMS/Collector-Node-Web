@@ -226,9 +226,6 @@ jobs:
         run: cp -v *.md ISO/
 
       - name: Show Artifacts
-        run: ls -Alht ISO/*tgz*
-
-      - name: ISO Table of contents
         run: |
           echo -e "Directory Listing:\n$(ls -1Ssh ISO)"
           echo -e "\nDirectory Size:\n$(du -chd0 ISO)"
@@ -241,13 +238,6 @@ jobs:
             ../${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.sha
           cd -
           cp -v ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.??? ISO/
-
-      - name: Upload iso ToC artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.txt
-          path: ISO/${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.txt
-          if-no-files-found: error
 
       - name: Make ISO
         run: |
@@ -306,7 +296,7 @@ jobs:
           pattern: "${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso*"
           merge-multiple: true
 
-      - name: Validate Hashes
+      - name: Validate ISO Hashes
         run: |
           echo -e "List Artifacts"
           ls -Alht
