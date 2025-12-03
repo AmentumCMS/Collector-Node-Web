@@ -16,6 +16,7 @@ jobs:
       v18:  ${{ steps.v.outputs.v18 }}
       v20:  ${{ steps.v.outputs.v20 }}
       v22:  ${{ steps.v.outputs.v22 }}
+      v24:  ${{ steps.v.outputs.v24 }}
     steps:
       - name: Get current date
         id: DATE
@@ -42,18 +43,21 @@ jobs:
                 '[.[] | select(.version | startswith($major_version))][0].version'
           }
 
-          # Fetch the latest versions for v18, v20, and v22
+          # Fetch the latest versions for v18, v20, v22, and v24
           v18=$(get_version 18)
           v20=$(get_version 20)
           v22=$(get_version 22)
+          v24=$(get_version 24)
 
           echo "The latest Node.js v18 version is: $v18"
           echo "The latest Node.js v20 version is: $v20"
           echo "The latest Node.js v22 version is: $v22"
+          echo "The latest Node.js v24 version is: $v24"
 
           echo "v18=${v18}" >> $GITHUB_OUTPUT
           echo "v20=${v20}" >> $GITHUB_OUTPUT
           echo "v22=${v22}" >> $GITHUB_OUTPUT
+          echo "v24=${v24}" >> $GITHUB_OUTPUT
 
           echo -e "\nFile:\n$GITHUB_OUTPUT"
           echo "Values:"
@@ -99,7 +103,7 @@ jobs:
           yarn dlx verdaccio >\
             verdaccio/verdaccio.log 2>\
             verdaccio/verdaccio-err.log &
-          tail -f verdaccio/verdaccio.log & P=$! && sleep 30 && kill -9 $P
+          tail -f verdaccio/verdaccio.log & P=$! && sleep 20 && kill -9 $P
           echo -e "\nTailing errors\n" &&\
           tail verdaccio/verdaccio-err.log
 
@@ -131,18 +135,6 @@ jobs:
         run: |
           sha256sum -b verdaccio-${{ needs.Setup.outputs.Date }}.tgz | tee \
             verdaccio-${{ needs.Setup.outputs.Date }}.tgz.sha
-      
-      - name: TARchive node_modules directory
-        run: |
-          ls -lAhS ${{ github.workspace }}
-          tar -cvzf node-modules-${{ needs.Setup.outputs.Date }}.tgz \
-            node_modules yarn.lock \
-            | tee node-modules-${{ needs.Setup.outputs.Date }}.tgz.txt
-
-      - name: TARchive verdaccio storage directory SHA HASH
-        run: |
-          sha256sum -b node-modules-${{ needs.Setup.outputs.Date }}.tgz | tee \
-            node-modules-${{ needs.Setup.outputs.Date }}.tgz.sha
 
       - name: TARchive yarn cache directory
         run: |
@@ -151,7 +143,7 @@ jobs:
             .yarn yarn.lock \
             | tee yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.txt
 
-      - name: TARchive verdaccio storage directory SHA HASH
+      - name: TARchive yarn-cache storage directory SHA HASH
         run: |
           sha256sum -b yarn-cache-${{ needs.Setup.outputs.Date }}.tgz | tee \
             yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.sha
@@ -160,63 +152,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: verdaccio-${{ needs.Setup.outputs.Date }}.tgz
-          path: verdaccio-${{ needs.Setup.outputs.Date }}.tgz
-          if-no-files-found: error
-
-      - name: Upload verdaccio ToC artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: verdaccio-${{ needs.Setup.outputs.Date }}.tgz.txt
-          path: verdaccio-${{ needs.Setup.outputs.Date }}.tgz.txt
-          if-no-files-found: error
-
-      - name: Upload verdaccio SHA artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: verdaccio-${{ needs.Setup.outputs.Date }}.tgz.sha
-          path: verdaccio-${{ needs.Setup.outputs.Date }}.tgz.sha
+          path: verdaccio-${{ needs.Setup.outputs.Date }}.tgz*
           if-no-files-found: error
 
       - name: Upload yarn-cache artifact
         uses: actions/upload-artifact@v4
         with:
           name: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz
-          path: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz
-          if-no-files-found: error
-
-      - name: Upload yarn-cache ToC artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.txt
-          path: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.txt
-          if-no-files-found: error
-
-      - name: Upload yarn-cache SHA artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.sha
-          path: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.sha
-          if-no-files-found: error
-
-      - name: Upload node-modules artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: node-modules-${{ needs.Setup.outputs.Date }}.tgz
-          path: node-modules-${{ needs.Setup.outputs.Date }}.tgz
-          if-no-files-found: error
-
-      - name: Upload node-modules ToC artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: node-modules-${{ needs.Setup.outputs.Date }}.tgz.txt
-          path: node-modules-${{ needs.Setup.outputs.Date }}.tgz.txt
-          if-no-files-found: error
-      
-      - name: Upload node-modules SHA artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: node-modules-${{ needs.Setup.outputs.Date }}.tgz.sha
-          path: node-modules-${{ needs.Setup.outputs.Date }}.tgz.sha
+          path: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz*
           if-no-files-found: error
 
       - name: Upload Logs
@@ -254,12 +197,15 @@ jobs:
           wget -nv https://nodejs.org/dist/latest-v18.x/node-${{ needs.Setup.outputs.v18 }}-x64.msi
           wget -nv https://nodejs.org/dist/latest-v20.x/node-${{ needs.Setup.outputs.v20 }}-x64.msi
           wget -nv https://nodejs.org/dist/latest-v22.x/node-${{ needs.Setup.outputs.v22 }}-x64.msi
+          wget -nv https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-x64.msi
           wget -nv https://nodejs.org/dist/latest-v18.x/node-${{ needs.Setup.outputs.v18 }}-win-x64.zip
           wget -nv https://nodejs.org/dist/latest-v20.x/node-${{ needs.Setup.outputs.v20 }}-win-x64.zip
           wget -nv https://nodejs.org/dist/latest-v22.x/node-${{ needs.Setup.outputs.v22 }}-win-x64.zip
+          wget -nv https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-win-x64.zip
           wget -nv https://nodejs.org/dist/latest-v18.x/node-${{ needs.Setup.outputs.v18 }}-linux-x64.tar.xz
           wget -nv https://nodejs.org/dist/latest-v20.x/node-${{ needs.Setup.outputs.v20 }}-linux-x64.tar.xz
           wget -nv https://nodejs.org/dist/latest-v22.x/node-${{ needs.Setup.outputs.v22 }}-linux-x64.tar.xz
+          wget -nv https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-linux-x64.tar.xz
           sha256sum -b * | tee node_runtimes.sha
 
       - name: Copy Markdowns to ISO
@@ -371,7 +317,7 @@ jobs:
       pull-requests: read
     strategy:
       matrix:
-        node-version: [18.x, 20.x, 22.x]
+        node-version: [18.x, 20.x, 22.x, 24.x]
     steps:
       - name: Install isomd5sum
         run: |
@@ -458,10 +404,10 @@ jobs:
           tag_name: ${{ needs.Setup.outputs.Date }}
           make_latest: true
           files: |
-            *.tgz
-            *.zip
+            *.tgz*
+            *.zip*
             *.txt
-            *.iso
+            *.iso*
             *.sha
 
   Sharepoint:
