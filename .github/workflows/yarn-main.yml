@@ -313,9 +313,64 @@ jobs:
           path: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
           if-no-files-found: error
 
-  OfflineTest:
+  VirusScan:
     runs-on: ubuntu-24.04
     needs: [Setup, MakeISO]
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Download ISO artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
+          path: scan-files
+
+      - name: Download TGZ artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: scan-files
+          pattern: "*-${{ needs.Setup.outputs.Date }}.tgz"
+
+      - name: List files to scan
+        run: |
+          echo "Files to be scanned:"
+          ls -lh scan-files/
+
+      - name: Scan files for viruses
+        id: virus_scan
+        uses: hugoalh/scan-virus-ghaction/clamav@v0.20.1
+        with:
+          clamav_update: true
+          found_log: true
+          found_summary: true
+          statistics_log: true
+          statistics_summary: true
+
+      - name: Save scan summary
+        if: always()
+        run: |
+          echo "Virus scan completed" > virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          echo "Scan finished: ${{ steps.virus_scan.outputs.finish }}" >> virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          echo "Viruses found: ${{ steps.virus_scan.outputs.found }}" >> virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          echo "" >> virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          echo "For detailed scan results, check the job logs and step summary." >> virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+
+      - name: Upload virus scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          path: virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          if-no-files-found: error
+
+  OfflineTest:
+    runs-on: ubuntu-24.04
+    needs: [Setup, VirusScan]
     permissions:
       contents: write
       pull-requests: read
