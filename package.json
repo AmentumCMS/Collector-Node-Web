@@ -42,6 +42,7 @@
     "jest-websocket-mock": "^2.4.0",
     "jsdoc": "^4.0.0",
     "json-loader": "^0.5.7",
+    "lodash": "^4.17.21",
     "npm": "^8.19.2",
     "raw-body": "2.5.2",
     "sonarqube-scanner": "^4.2.0",
