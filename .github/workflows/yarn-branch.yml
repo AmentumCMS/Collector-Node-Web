@@ -309,7 +309,7 @@ jobs:
 
   OfflineTest:
     runs-on: ubuntu-24.04
-    needs: [Setup, MakeISO, VirusScan]
+    needs: [Setup, MakeISO]
     permissions:
       contents: write
       pull-requests: read
