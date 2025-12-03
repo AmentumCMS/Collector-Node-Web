@@ -295,18 +295,18 @@ jobs:
       - name: Save scan summary
         if: always()
         run: |
-          echo "Virus scan completed" > virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
-          echo "Scan finished: ${{ steps.virus_scan.outputs.finish }}" >> virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
-          echo "Viruses found: ${{ steps.virus_scan.outputs.found }}" >> virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
-          echo "" >> virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
-          echo "For detailed scan results, check the job logs and step summary." >> virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          echo "Virus scan completed" > ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          echo "Scan finished: ${{ steps.virus_scan.outputs.finish }}" >> ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          echo "Viruses found: ${{ steps.virus_scan.outputs.found }}" >> ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          echo "" >> ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          echo "For detailed scan results, check the job logs and step summary." >> ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
 
       - name: Upload virus scan report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
-          path: virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          name: ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          path: "*virus-scan-report-*.txt"
           if-no-files-found: warn
 
   OfflineTest:
@@ -382,10 +382,10 @@ jobs:
       - name: Show Artifacts
         run: |
           echo "ISO and TGZ files:"
-          ls -lh *tgz* *iso* || echo "No ISO/TGZ files found"
+          ls -1Ssh *tgz* *iso* || echo "No ISO/TGZ files found"
           echo ""
           echo "Virus scan report:"
-          ls -lh virus-scan-report-* || echo "No virus scan report found"
+          ls -1Ssh *virus-scan-report* || echo "No virus scan report found"
 
       - name: Create tag
         uses: rickstaa/action-create-tag@v1
@@ -404,10 +404,9 @@ jobs:
           tag_name: ${{ needs.Setup.outputs.Date }}
           make_latest: true
           files: |
-            *.tgz*
-            *.zip*
+            *.tgz
             *.txt
-            *.iso*
+            *.iso
             *.sha
 
   Sharepoint:
@@ -425,28 +424,15 @@ jobs:
       - name: Show Artifacts
         run: |
           echo "ISO and TGZ files:"
-          ls -lh *tgz* *iso* || echo "No ISO/TGZ files found"
+          ls -1Ssh *tgz* *iso* || echo "No ISO/TGZ files found"
           echo ""
           echo "Virus scan report:"
-          ls -lh virus-scan-report-* || echo "No virus scan report found"
+          ls -1Ssh *virus-scan-report* || echo "No virus scan report found"
 
       - name: Send Files to Sharepoint
         uses: amentumcms/sharepoint-file-upload-action@main
         with:
-          file_path: "*tgz*"
-          host_name: "${{ secrets.SHAREPOINT_HOST }}"
-          site_name: "${{ secrets.SHAREPOINT_SITE }}"
-          upload_path: "${{ secrets.SHAREPOINT_BASEPATH }}/${{ vars.COLLECTOR }}/${{ needs.Setup.outputs.Date }}"
-          tenant_id: ${{ secrets.SHAREPOINT_TENANT_ID }}
-          client_id: ${{ secrets.SHAREPOINT_APP_ID }}
-          client_secret: ${{ secrets.SHAREPOINT_APP_SECRET }}
-          login_endpoint: "login.microsoftonline.us"
-          graph_endpoint: "graph.microsoft.us"
-
-      - name: Send ISO to Sharepoint
-        uses: amentumcms/sharepoint-file-upload-action@main
-        with:
-          file_path: "*.iso*"
+          file_path: "${{ vars.COLLECTOR }}-*.*"
           host_name: "${{ secrets.SHAREPOINT_HOST }}"
           site_name: "${{ secrets.SHAREPOINT_SITE }}"
           upload_path: "${{ secrets.SHAREPOINT_BASEPATH }}/${{ vars.COLLECTOR }}/${{ needs.Setup.outputs.Date }}"
