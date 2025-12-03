@@ -90,7 +90,7 @@ jobs:
           echo "Node Version: $(node -v)"
           echo "Yarn version: $(yarn -v)"
 
-      - name: Setup Git
+      - name: Set up Git
         run: |
           git config user.name "$(git log -n 1 --pretty=format:%an)"
           git config user.email "$(git log -n 1 --pretty=format:%ae)"
@@ -259,6 +259,56 @@ jobs:
           path: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
           if-no-files-found: error
 
+  VirusScan:
+    runs-on: ubuntu-24.04
+    needs: [Setup, MakeISO]
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - name: Download ISO artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
+
+      - name: Download TGZ artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          pattern: "*-${{ needs.Setup.outputs.Date }}.tgz"
+
+      - name: List files to scan
+        run: |
+          echo "Files to be scanned:"
+          ls -lh
+
+      - name: Scan files for viruses
+        id: virus_scan
+        uses: hugoalh/scan-virus-ghaction/clamav@v0.20.1
+        with:
+          clamav_update: true
+          found_log: true
+          found_summary: true
+          statistics_log: true
+          statistics_summary: true
+
+      - name: Save scan summary
+        if: always()
+        run: |
+          echo "Virus scan completed" > virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          echo "Scan finished: ${{ steps.virus_scan.outputs.finish }}" >> virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          echo "Viruses found: ${{ steps.virus_scan.outputs.found }}" >> virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          echo "" >> virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          echo "For detailed scan results, check the job logs and step summary." >> virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+
+      - name: Upload virus scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          path: virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          if-no-files-found: warn
+
   OfflineTest:
     runs-on: ubuntu-24.04
     needs: [Setup, MakeISO]
@@ -315,7 +365,7 @@ jobs:
 
   Release:
     runs-on: ubuntu-24.04
-    needs: [Setup, OfflineTest]
+    needs: [Setup, VirusScan, OfflineTest]
     permissions:
       contents: write
       pull-requests: read
@@ -330,7 +380,12 @@ jobs:
           merge-multiple: true
 
       - name: Show Artifacts
-        run: ls -lh *tgz* *iso*
+        run: |
+          echo "ISO and TGZ files:"
+          ls -lh *tgz* *iso* || echo "No ISO/TGZ files found"
+          echo ""
+          echo "Virus scan report:"
+          ls -lh virus-scan-report-* || echo "No virus scan report found"
 
       - name: Create tag
         uses: rickstaa/action-create-tag@v1
@@ -357,7 +412,7 @@ jobs:
 
   Sharepoint:
     runs-on: ubuntu-24.04
-    needs: [Setup, OfflineTest]
+    needs: [Setup, VirusScan, OfflineTest]
     permissions:
       contents: write
       pull-requests: read
@@ -368,7 +423,12 @@ jobs:
           merge-multiple: true
 
       - name: Show Artifacts
-        run: ls -lh *tgz* *iso*
+        run: |
+          echo "ISO and TGZ files:"
+          ls -lh *tgz* *iso* || echo "No ISO/TGZ files found"
+          echo ""
+          echo "Virus scan report:"
+          ls -lh virus-scan-report-* || echo "No virus scan report found"
 
       - name: Send Files to Sharepoint
         uses: amentumcms/sharepoint-file-upload-action@main
