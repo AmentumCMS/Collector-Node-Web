@@ -262,7 +262,7 @@ jobs:
       pull-requests: read
     strategy:
       matrix:
-        node-version: [18.x, 20.x, 22.x]
+        node-version: [18.x, 20.x, 22.x, 24.x]
     steps:
       - name: Install isomd5sum
         run: |
