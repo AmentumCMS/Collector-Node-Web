@@ -320,26 +320,21 @@ jobs:
       contents: write
       pull-requests: read
     steps:
-      - name: Check out repository code
-        uses: actions/checkout@v4
-
       - name: Download ISO artifact
         uses: actions/download-artifact@v4
         with:
           name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
-          path: scan-files
 
       - name: Download TGZ artifacts
         uses: actions/download-artifact@v4
         with:
           merge-multiple: true
-          path: scan-files
           pattern: "*-${{ needs.Setup.outputs.Date }}.tgz"
 
       - name: List files to scan
         run: |
           echo "Files to be scanned:"
-          ls -lh scan-files/
+          ls -lh
 
       - name: Scan files for viruses
         id: virus_scan
@@ -370,7 +365,7 @@ jobs:
 
   OfflineTest:
     runs-on: ubuntu-24.04
-    needs: [Setup, VirusScan]
+    needs: [Setup, MakeISO, VirusScan]
     permissions:
       contents: write
       pull-requests: read
