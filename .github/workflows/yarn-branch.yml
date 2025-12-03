@@ -307,6 +307,55 @@ jobs:
           path: "*virus-scan-report-*.txt"
           if-no-files-found: warn
 
+  YaraScan:
+    runs-on: ubuntu-24.04
+    needs: [Setup, MakeISO]
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - name: Download ISO artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
+
+      - name: Download TGZ artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          pattern: "*-${{ needs.Setup.outputs.Date }}.tgz"
+
+      - name: List files to scan
+        run: |
+          echo "Files to be scanned:"
+          ls -lh
+
+      - name: Scan with YARA
+        id: yara_scan
+        uses: hugoalh/scan-virus-ghaction/yara@v0.20.1
+        with:
+          found_log: true
+          found_summary: true
+          statistics_log: true
+          statistics_summary: true
+
+      # - name: Save scan summary
+      #   if: always()
+      #   run: |
+      #     echo "Virus scan completed" > ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+      #     echo "Scan finished: ${{ steps.virus_scan.outputs.finish }}" >> ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+      #     echo "Viruses found: ${{ steps.virus_scan.outputs.found }}" >> ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+      #     echo "" >> ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+      #     echo "For detailed scan results, check the job logs and step summary." >> ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+
+      # - name: Upload virus scan report
+      #   if: always()
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+      #     path: "*virus-scan-report-*.txt"
+      #     if-no-files-found: warn
+
   OfflineTest:
     runs-on: ubuntu-24.04
     needs: [Setup, MakeISO]
