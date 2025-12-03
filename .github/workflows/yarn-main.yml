@@ -404,10 +404,9 @@ jobs:
           tag_name: ${{ needs.Setup.outputs.Date }}
           make_latest: true
           files: |
-            *.tgz*
-            *.zip*
+            *.tgz
             *.txt
-            *.iso*
+            *.iso
             *.sha
 
   Sharepoint:
