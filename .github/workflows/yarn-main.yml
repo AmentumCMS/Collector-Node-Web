@@ -439,7 +439,12 @@ jobs:
           merge-multiple: true
 
       - name: Show Artifacts
-        run: ls -lh *tgz* *iso*
+        run: |
+          echo "ISO and TGZ files:"
+          ls -lh *tgz* *iso* || echo "No ISO/TGZ files found"
+          echo ""
+          echo "Virus scan report:"
+          ls -lh virus-scan-report-* || echo "No virus scan report found"
 
       - name: Create tag
         uses: rickstaa/action-create-tag@v1
@@ -477,7 +482,12 @@ jobs:
           merge-multiple: true
 
       - name: Show Artifacts
-        run: ls -lh *tgz* *iso*
+        run: |
+          echo "ISO and TGZ files:"
+          ls -lh *tgz* *iso* || echo "No ISO/TGZ files found"
+          echo ""
+          echo "Virus scan report:"
+          ls -lh virus-scan-report-* || echo "No virus scan report found"
 
       - name: Send Files to Sharepoint
         uses: amentumcms/sharepoint-file-upload-action@main

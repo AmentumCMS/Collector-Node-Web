@@ -434,7 +434,12 @@ jobs:
           merge-multiple: true
 
       - name: Show Artifacts
-        run: ls -lh *tgz* *iso*
+        run: |
+          echo "ISO and TGZ files:"
+          ls -lh *tgz* *iso* || echo "No ISO/TGZ files found"
+          echo ""
+          echo "Virus scan report:"
+          ls -lh virus-scan-report-* || echo "No virus scan report found"
 
   Sharepoint:
     runs-on: ubuntu-24.04
@@ -449,4 +454,9 @@ jobs:
           merge-multiple: true
 
       - name: Show Artifacts
-        run: ls -lh *tgz* *iso*
+        run: |
+          echo "ISO and TGZ files:"
+          ls -lh *tgz* *iso* || echo "No ISO/TGZ files found"
+          echo ""
+          echo "Virus scan report:"
+          ls -lh virus-scan-report-* || echo "No virus scan report found"
