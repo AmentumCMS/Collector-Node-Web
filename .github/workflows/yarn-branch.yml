@@ -356,7 +356,7 @@ jobs:
         with:
           name: virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
           path: virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
-          if-no-files-found: error
+          if-no-files-found: warn
 
   OfflineTest:
     runs-on: ubuntu-24.04
@@ -414,7 +414,7 @@ jobs:
 
   Release:
     runs-on: ubuntu-24.04
-    needs: [Setup, OfflineTest]
+    needs: [Setup, VirusScan, OfflineTest]
     permissions:
       contents: write
       pull-requests: read
@@ -438,7 +438,7 @@ jobs:
 
   Sharepoint:
     runs-on: ubuntu-24.04
-    needs: [Setup, OfflineTest]
+    needs: [Setup, VirusScan, OfflineTest]
     permissions:
       contents: write
       pull-requests: read
