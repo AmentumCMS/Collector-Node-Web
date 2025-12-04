@@ -306,10 +306,8 @@ jobs:
 
           echo -e "\nGenerated Virus Scan Report:\n$(cat ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt)"
 
-          echo -e "\nListing statistics:\n${{ steps.virus_scan.outputs.statistics_summary }}" \
+          echo -e "\nScan Statistics:\n$(cat $GITHUB_STEP_SUMMARY)" \
           | tee ${{ vars.COLLECTOR }}-virus-scan-statistics-${{ needs.Setup.outputs.Date }}.txt
-          echo -e "\nListing statistics log:\n${{ steps.virus_scan.outputs.statistics_log }}" \
-          | tee ${{ vars.COLLECTOR }}-virus-scan-statistics-log-${{ needs.Setup.outputs.Date }}.txt
 
       - name: Upload virus scan report
         if: always()
