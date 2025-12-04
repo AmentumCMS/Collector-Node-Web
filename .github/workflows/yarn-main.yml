@@ -154,15 +154,15 @@ jobs:
       - name: Upload verdaccio artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: verdaccio-${{ needs.Setup.outputs.Date }}.tgz
-          path: verdaccio-${{ needs.Setup.outputs.Date }}.tgz*
+          name: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz
+          path: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz*
           if-no-files-found: error
 
       - name: Upload yarn-cache artifact
         uses: actions/upload-artifact@v4
         with:
-          name: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz
-          path: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz*
+          name: ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz
+          path: ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz*
           if-no-files-found: error
 
       - name: Upload Logs
@@ -387,7 +387,6 @@ jobs:
 
       - name: Show Artifacts
         run: |
-        
           echo -e "Directory Listing:\n$(ls -1Ssh ${{ vars.COLLECTOR }}-*.*)"
           echo -e "\nDirectory Size:\n$(du -chd0 ${{ vars.COLLECTOR }}-*.*)"
           echo -e "\nISO and TGZ files:"
