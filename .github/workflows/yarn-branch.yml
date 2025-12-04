@@ -404,4 +404,4 @@ jobs:
           ls -1Ssh *tgz* *iso* || echo "No ISO/TGZ files found"
           echo ""
           echo "Virus scan report:"
-          ls -1Ssh virus-scan-report-* || echo "No virus scan report found"
+          ls -1Ssh *virus-scan-report* || echo "No virus scan report found"

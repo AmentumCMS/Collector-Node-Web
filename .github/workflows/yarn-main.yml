@@ -401,14 +401,10 @@ jobs:
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
-          name: Node Collection ${{ needs.Setup.outputs.Date }}
+          name: ${{ vars.COLLECTOR }} ${{ needs.Setup.outputs.Date }}
           tag_name: ${{ needs.Setup.outputs.Date }}
           make_latest: true
-          files: |
-            *.tgz
-            *.txt
-            *.iso
-            *.sha
+          files: ${{ vars.COLLECTOR }}-*.*
 
   Sharepoint:
     runs-on: ubuntu-24.04
