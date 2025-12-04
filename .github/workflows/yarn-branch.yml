@@ -1,30 +1,69 @@
-name: Node CI with Maven
+name: Node Collector Webclient - Branch Test
 run-name: ${{ github.actor }} is Collecting Nodi-ness🚀
 on:
   push:
-    branches: []
+    branches-ignore:
+      - main
+  workflow_dispatch:
+
 jobs:
-  Date:
-    runs-on: ubuntu-latest
+  Setup:
+    runs-on: ubuntu-24.04
     outputs:
       Date: ${{ steps.date.outputs.date }}
+      v18:  ${{ steps.v.outputs.v18 }}
+      v20:  ${{ steps.v.outputs.v20 }}
+      v22:  ${{ steps.v.outputs.v22 }}
+      v24:  ${{ steps.v.outputs.v24 }}
     steps:
       - name: Get current date
         id: DATE
         run: |
-          echo "Setting Date"
+          echo "Getting Date"
           echo "DATE=$(date '+%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
-          echo -e "\nWrote to file:\n$GITHUB_OUTPUT\n"
+          echo -e "\nFile:\n$GITHUB_OUTPUT"
+          echo "Values:"
+          cat $GITHUB_OUTPUT
+
+      - name: Get current node versions
+        id: v
+        run: |
+          echo -e "Getting versions"
+
+          # Fetch the Node.js version data
+          node_versions=$(curl -s https://nodejs.org/dist/index.json)
+          
+          # Function to get the latest version for a specific major version
+          get_version() { 
+            major_version=$1 
+            echo $node_versions |\
+              jq -r --arg major_version "v$major_version" \
+                '[.[] | select(.version | startswith($major_version))][0].version'
+          }
+
+          # Fetch the latest versions for v18, v20, v22, and v24
+          v18=$(get_version 18)
+          v20=$(get_version 20)
+          v22=$(get_version 22)
+          v24=$(get_version 24)
+
+          echo "The latest Node.js v18 version is: $v18"
+          echo "The latest Node.js v20 version is: $v20"
+          echo "The latest Node.js v22 version is: $v22"
+          echo "The latest Node.js v24 version is: $v24"
+
+          echo "v18=${v18}" >> $GITHUB_OUTPUT
+          echo "v20=${v20}" >> $GITHUB_OUTPUT
+          echo "v22=${v22}" >> $GITHUB_OUTPUT
+          echo "v24=${v24}" >> $GITHUB_OUTPUT
+
+          echo -e "\nFile:\n$GITHUB_OUTPUT"
           echo "Values:"
           cat $GITHUB_OUTPUT
 
   Collect:
-    runs-on: ubuntu-latest
-    needs: [Date]
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+    runs-on: ubuntu-24.04
+    needs: [Setup]
 
     permissions:
       contents: write
@@ -33,88 +72,336 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
-
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: "npm"
+          submodules: true
+          lfs: true
 
-      - name: Set up git
+      - name: Use Node.js ${{ needs.Setup.outputs.v18 }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ needs.Setup.outputs.v18 }}
+
+      - name: Enable Corepack
+        run: |
+          echo -e "\nEnabling Corepack for Yarn"
+          sudo corepack enable
+          echo "Node Version: $(node -v)"
+          echo "Yarn version: $(yarn -v)"
+
+      - name: Set up Git
         run: |
           git config user.name "$(git log -n 1 --pretty=format:%an)"
           git config user.email "$(git log -n 1 --pretty=format:%ae)"
 
-      - name: Install yarn
+      - name: Run yarn with verdaccio
         run: |
-          sudo apt-get update -y 
-          sudo corepack enable
+          export XDG_DATA_HOME=$PWD
 
-      - name: Run yarn
-        run: |
-          yarn set version 4.0.2
+          echo -e "\nRunning Verdaccio"
+          yarn dlx verdaccio >\
+            verdaccio/verdaccio.log 2>\
+            verdaccio/verdaccio-err.log &
+          tail -f verdaccio/verdaccio.log & P=$! && sleep 20 && kill -9 $P
+          echo -e "\nTailing errors\n" &&\
+          tail verdaccio/verdaccio-err.log
+
+          echo -e "\nSetting up registries"
+          npm set registry http://localhost:4873/
+          yarn config set npmRegistryServer http://localhost:4873/
+
+          echo -e "\nChecking Connectivity\n"
+          curl http://localhost:4873 -o test.html
+          sleep 1
+          echo -e "\nRunning Yarn"
           yarn install
 
-      - name: TARchive node_modules directory
+      - name: Listings
         run: |
-          ls -lah ${{ github.workspace }}
-          tar -cvzf node-modules-${{ matrix.node-version }}-${{ needs.Date.outputs.Date }}.tgz node_modules \
-            | tee node-modules-${{ matrix.node-version }}-${{ needs.Date.outputs.Date }}.tgz.txt
+          echo -e "\nListing verdaccio/*"
+          ls -Alht verdaccio/*
+          echo -e "\nListing Consumption"
+          du -chd0 .yarn node_modules verdaccio/*
+
+      - name: TARchive verdaccio storage directory
+        run: |
+          ls -Alht verdaccio/*
+          tar -cvzf verdaccio-${{ needs.Setup.outputs.Date }}.tgz \
+            verdaccio \
+            | tee verdaccio-${{ needs.Setup.outputs.Date }}.tgz.txt
+
+      - name: TARchive verdaccio storage directory SHA HASH
+        run: |
+          sha256sum -b verdaccio-${{ needs.Setup.outputs.Date }}.tgz | tee \
+            verdaccio-${{ needs.Setup.outputs.Date }}.tgz.sha
 
       - name: TARchive yarn cache directory
         run: |
-          ls -lah ${{ github.workspace }}
-          tar -cvzf yarn-cache-${{ matrix.node-version }}-${{ needs.Date.outputs.Date }}.tgz .yarn \
-            | tee yarn-cache-${{ matrix.node-version }}-${{ needs.Date.outputs.Date }}.tgz.txt
+          ls -lAhS ${{ github.workspace }}
+          tar -cvzf yarn-cache-${{ needs.Setup.outputs.Date }}.tgz \
+            .yarn yarn.lock \
+            | tee yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.txt
 
-      # - name: Create BoM ZIP
-      #   run: |
-      #       cd target
-      #       ls -lah
-      #       zip ../yarn-bom-${{ needs.Date.outputs.Date }}.zip bom.*
+      - name: TARchive yarn-cache storage directory SHA HASH
+        run: |
+          sha256sum -b yarn-cache-${{ needs.Setup.outputs.Date }}.tgz | tee \
+            yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.sha
 
-      - name: Upload cache artifact
+      - name: Upload verdaccio artifact
         uses: actions/upload-artifact@v4
         with:
-          name: yarn-cache-${{ matrix.node-version }}-${{ needs.Date.outputs.Date }}.tgz
-          path: yarn-cache-${{ matrix.node-version }}-${{ needs.Date.outputs.Date }}.tgz
+          name: verdaccio-${{ needs.Setup.outputs.Date }}.tgz
+          path: verdaccio-${{ needs.Setup.outputs.Date }}.tgz*
           if-no-files-found: error
 
-      - name: Upload cache ToC artifact
+      - name: Upload yarn-cache artifact
         uses: actions/upload-artifact@v4
         with:
-          name: yarn-cache-${{ matrix.node-version }}-${{ needs.Date.outputs.Date }}.tgz.txt
-          path: yarn-cache-${{ matrix.node-version }}-${{ needs.Date.outputs.Date }}.tgz.txt
+          name: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz
+          path: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz*
           if-no-files-found: error
 
-      - name: Upload modules artifact
+      - name: Upload Logs
         uses: actions/upload-artifact@v4
         with:
-          name: node-modules-${{ matrix.node-version }}-${{ needs.Date.outputs.Date }}.tgz
-          path: node-modules-${{ matrix.node-version }}-${{ needs.Date.outputs.Date }}.tgz
-          if-no-files-found: error
+          name: Logs-${{ needs.Setup.outputs.Date }}.log
+          path: "verdaccio/*.log"
 
-      - name: Upload cache ToC artifact
+  MakeISO:
+    runs-on: ubuntu-24.04
+    needs: [Setup, Collect]
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - name: Install mkisofs
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y mkisofs isomd5sum wget
+
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: ISO
+
+      - name: Download Node Installers
+        run: |
+          echo -e "\nDownloading installers\n"
+          mkdir -p ISO/runtimes
+          cd ISO/runtimes
+          wget -nv https://nodejs.org/dist/latest-v18.x/node-${{ needs.Setup.outputs.v18 }}-x64.msi
+          wget -nv https://nodejs.org/dist/latest-v20.x/node-${{ needs.Setup.outputs.v20 }}-x64.msi
+          wget -nv https://nodejs.org/dist/latest-v22.x/node-${{ needs.Setup.outputs.v22 }}-x64.msi
+          wget -nv https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-x64.msi
+          wget -nv https://nodejs.org/dist/latest-v18.x/node-${{ needs.Setup.outputs.v18 }}-win-x64.zip
+          wget -nv https://nodejs.org/dist/latest-v20.x/node-${{ needs.Setup.outputs.v20 }}-win-x64.zip
+          wget -nv https://nodejs.org/dist/latest-v22.x/node-${{ needs.Setup.outputs.v22 }}-win-x64.zip
+          wget -nv https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-win-x64.zip
+          wget -nv https://nodejs.org/dist/latest-v18.x/node-${{ needs.Setup.outputs.v18 }}-linux-x64.tar.xz
+          wget -nv https://nodejs.org/dist/latest-v20.x/node-${{ needs.Setup.outputs.v20 }}-linux-x64.tar.xz
+          wget -nv https://nodejs.org/dist/latest-v22.x/node-${{ needs.Setup.outputs.v22 }}-linux-x64.tar.xz
+          wget -nv https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-linux-x64.tar.xz
+          sha256sum -b * | tee node_runtimes.sha
+
+      - name: Copy Markdowns to ISO
+        run: cp -v *.md ISO/
+
+      - name: Show Artifacts
+        run: ls -Alht ISO/*tgz*
+
+      - name: ISO Table of contents
+        run: |
+          tree -a ISO/ \
+            | tee ISO/${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.txt
+
+      - name: Upload iso ToC artifact
         uses: actions/upload-artifact@v4
         with:
-          name: node-modules-${{ matrix.node-version }}-${{ needs.Date.outputs.Date }}.tgz.txt
-          path: node-modules-${{ matrix.node-version }}-${{ needs.Date.outputs.Date }}.tgz.txt
+          name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.txt
+          path: ISO/${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.txt
           if-no-files-found: error
 
-      # - name: Upload assembly artifact
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: yarn-assembly-${{ needs.Date.outputs.Date }}.zip
-      #     path: target/demo-0.0.1.zip
-      #     if-no-files-found: error
+      - name: Make ISO
+        run: |
+          mkisofs -J -R -v -T -l \
+            -V '${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}' \
+            -A '${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}' \
+            -o ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso \
+            ISO
 
-      # - name: Upload BOM ZIP
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: yarn-bom-${{ needs.Date.outputs.Date }}.zip
-      #     path: yarn-bom-${{ needs.Date.outputs.Date }}.zip
-      #     if-no-files-found: error
+      - name: Implant MD5 sum into iso
+        run: implantisomd5 ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
 
-      # Optional: Uploads the full dependency graph to GitHub to improve the quality of Dependabot alerts this repository can receive
-      #- name: Update dependency graph
-      #  uses: advanced-security/maven-dependency-submission-action@571e99aab1055c2e71a1e2309b9691de18d6b7d6
+      - name: Generate Hash
+        run: |
+          sha256sum -b ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso | tee \
+            ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
+
+      - name: Show ISO & Hash
+        run: ls -Alht *.iso*
+
+      - name: Upload iso artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
+          path: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
+          if-no-files-found: error
+
+      - name: Upload iso sha artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
+          path: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
+          if-no-files-found: error
+
+  VirusScan:
+    runs-on: ubuntu-24.04
+    needs: [Setup, MakeISO]
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - name: Download ISO artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
+
+      - name: Download TGZ artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          pattern: "*-${{ needs.Setup.outputs.Date }}.tgz"
+
+      - name: List files to scan
+        run: |
+          echo "Files to be scanned:"
+          ls -1Ssh
+
+      - name: Scan files for viruses
+        id: virus_scan
+        uses: hugoalh/scan-virus-ghaction/clamav@v0.20.1
+        with:
+          clamav_update: true
+          found_log: true
+          found_summary: true
+          statistics_log: true
+          statistics_summary: true
+
+      - name: Save scan summary
+        if: always()
+        run: |
+          echo "Virus scan completed" > ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          echo "Scan finished: ${{ steps.virus_scan.outputs.finish }}" >> ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          echo "Viruses found: ${{ steps.virus_scan.outputs.found }}" >> ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          echo "" >> ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          echo "For detailed scan results, check the job logs and step summary." >> ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+
+          echo -e "\nGenerated Virus Scan Report:\n$(cat ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt)"
+      - name: Upload virus scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          path: "*virus-scan-report-*.txt"
+          if-no-files-found: warn
+
+  OfflineTest:
+    runs-on: ubuntu-24.04
+    needs: [Setup, MakeISO]
+    permissions:
+      contents: write
+      pull-requests: read
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 22.x, 24.x]
+    steps:
+      - name: Install isomd5sum
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y isomd5sum
+
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Download ISO and hash
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso*"
+          merge-multiple: true
+
+      - name: Validate Hashes
+        run: |
+          echo -e "List Artifacts"
+          ls -Alht
+          echo -e "\nCheck injected ISO MD5"
+          checkisomd5 ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
+          echo -e "\nCheck ISO sha256"
+          sha256sum -cw ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
+
+      - name: Mount ISO
+        run: sudo mount -v -o loop ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso /mnt
+
+      - name: UnTARchive Yarn Cache
+        run: tar -xzvf /mnt/yarn-cache-${{ needs.Setup.outputs.Date }}.tgz
+
+      - name: Run yarn install
+        run: |
+          echo -e "Setup Yarn"
+          sudo corepack enable
+          echo -e "Configure Yarn for inaccessable network"
+          npm set registry http://localhost:4873/
+          yarn config set npmRegistryServer http://localhost:4873/
+          echo -e "\nRun yarn install --immutable\n"
+          yarn install --immutable
+
+      - name: Run yarn
+        run: |
+          echo -e "Run Yarn"
+          yarn run
+
+  Release:
+    runs-on: ubuntu-24.04
+    needs: [Setup, VirusScan, OfflineTest]
+    permissions:
+      contents: write
+      pull-requests: read
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Show Artifacts
+        run: |
+          echo "ISO and TGZ files:"
+          ls -1Ssh *tgz* *iso* || echo "No ISO/TGZ files found"
+          echo ""
+          echo "Virus scan report:"
+          ls -1Ssh *virus-scan-report* || echo "No virus scan report found"
+
+  Sharepoint:
+    runs-on: ubuntu-24.04
+    needs: [Setup, VirusScan, OfflineTest]
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Show Artifacts
+        run: |
+          echo "ISO and TGZ files:"
+          ls -1Ssh *tgz* *iso* || echo "No ISO/TGZ files found"
+          echo ""
+          echo "Virus scan report:"
+          ls -1Ssh *virus-scan-report* || echo "No virus scan report found"
