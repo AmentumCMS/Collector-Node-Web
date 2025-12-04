@@ -19,10 +19,10 @@ jobs:
       - name: Get current date
         id: DATE
         run: |
-          echo "Getting Date"
+          echo -n "Getting Date: "
           echo "DATE=$(date '+%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
-          echo -e "\nFile:\n$GITHUB_OUTPUT"
-          echo "Values:"
+          echo -e "$DATE\nFile:\n$GITHUB_OUTPUT"
+          echo -e "\nValues:"
           cat $GITHUB_OUTPUT
 
       - name: Get current node versions
@@ -83,9 +83,13 @@ jobs:
 
       - name: Enable Corepack
         run: |
+          echo -e "\nUpdating apt repositories"
+          sudo apt-get update -y
+
           echo -e "\nEnabling Corepack for Yarn"
           sudo corepack enable
-          echo "Node Version: $(node -v)"
+          yarn set version stable
+          echo -e "\nNode Version: $(node -v)"
           echo "Yarn version: $(yarn -v)"
 
       - name: Set up Git
@@ -112,52 +116,51 @@ jobs:
           echo -e "\nChecking Connectivity\n"
           curl http://localhost:4873 -o test.html
           sleep 1
+
           echo -e "\nRunning Yarn"
           yarn install
 
       - name: Listings
         run: |
           echo -e "\nListing verdaccio/*"
-          ls -Alht verdaccio/*
+          ls -1Ssh verdaccio/*
           echo -e "\nListing Consumption"
-          du -chd0 .yarn node_modules verdaccio/*
+          du -chd0 node_modules verdaccio/*
 
       - name: TARchive verdaccio storage directory
         run: |
-          ls -Alht verdaccio/*
-          tar -cvzf verdaccio-${{ needs.Setup.outputs.Date }}.tgz \
+          tar -cvI pigz -f ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz \
             verdaccio \
-            | tee verdaccio-${{ needs.Setup.outputs.Date }}.tgz.txt
+            | tee ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz.txt
 
       - name: TARchive verdaccio storage directory SHA HASH
         run: |
           sha256sum -b verdaccio-${{ needs.Setup.outputs.Date }}.tgz | tee \
             verdaccio-${{ needs.Setup.outputs.Date }}.tgz.sha
 
-      - name: TARchive yarn cache directory
+      - name: TARchive .yarn directory
         run: |
-          ls -lAhS ${{ github.workspace }}
-          tar -cvzf yarn-cache-${{ needs.Setup.outputs.Date }}.tgz \
+          tar -cvI pigz -f ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz \
             .yarn yarn.lock \
-            | tee yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.txt
+            | tee ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz.txt
 
       - name: TARchive yarn-cache storage directory SHA HASH
         run: |
-          sha256sum -b yarn-cache-${{ needs.Setup.outputs.Date }}.tgz | tee \
-            yarn-cache-${{ needs.Setup.outputs.Date }}.tgz.sha
+          sha256sum -b ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz | tee \
+            ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz.sha
 
-      - name: Upload verdaccio artifact
+      - name: Upload verdaccio artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: verdaccio-${{ needs.Setup.outputs.Date }}.tgz
-          path: verdaccio-${{ needs.Setup.outputs.Date }}.tgz*
+          name: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz
+          path: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz*
           if-no-files-found: error
 
       - name: Upload yarn-cache artifact
         uses: actions/upload-artifact@v4
         with:
-          name: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz
-          path: yarn-cache-${{ needs.Setup.outputs.Date }}.tgz*
+          name: ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz
+          path: ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz*
           if-no-files-found: error
 
       - name: Upload Logs
@@ -169,17 +172,19 @@ jobs:
   MakeISO:
     runs-on: ubuntu-24.04
     needs: [Setup, Collect]
+    env:
+      GH_TOKEN: ${{ github.token }}
     permissions:
       contents: write
       pull-requests: read
     steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
       - name: Install mkisofs
         run: |
           sudo apt-get update -y
           sudo apt-get install -y mkisofs isomd5sum wget
-
-      - name: Check out repository code
-        uses: actions/checkout@v4
 
       - name: Download Artifacts
         uses: actions/download-artifact@v4
@@ -210,19 +215,18 @@ jobs:
         run: cp -v *.md ISO/
 
       - name: Show Artifacts
-        run: ls -Alht ISO/*tgz*
-
-      - name: ISO Table of contents
         run: |
-          tree -a ISO/ \
-            | tee ISO/${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.txt
+          echo -e "Directory Listing:\n$(ls -1Ssh ISO)"
+          echo -e "\nDirectory Size:\n$(du -chd0 ISO)"
+          echo -e "\nFile structure:\n$(tree -L 3 ISO|tee ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.txt)"
 
-      - name: Upload iso ToC artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.txt
-          path: ISO/${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.txt
-          if-no-files-found: error
+      - name: Generate Comprehensive Artifacts Hash File
+        run: |
+          cd ISO
+          sha256sum -b * vscode/* runtimes/* | tee \
+            ../${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.sha
+          cd -
+          cp -v ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.??? ISO/
 
       - name: Make ISO
         run: |
@@ -235,22 +239,22 @@ jobs:
       - name: Implant MD5 sum into iso
         run: implantisomd5 ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
 
-      - name: Generate Hash
+      - name: Generate ISO Hash
         run: |
           sha256sum -b ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso | tee \
             ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
 
       - name: Show ISO & Hash
-        run: ls -Alht *.iso*
+        run: ls -1Ssh *.iso*
 
-      - name: Upload iso artifact
+      - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
           name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
-          path: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
+          path: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso*
           if-no-files-found: error
 
-      - name: Upload iso sha artifact
+      - name: Upload ISO SHA
         uses: actions/upload-artifact@v4
         with:
           name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
@@ -332,7 +336,7 @@ jobs:
           pattern: "${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso*"
           merge-multiple: true
 
-      - name: Validate Hashes
+      - name: Validate ISO Hashes
         run: |
           echo -e "List Artifacts"
           ls -Alht
@@ -345,7 +349,7 @@ jobs:
         run: sudo mount -v -o loop ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso /mnt
 
       - name: UnTARchive Yarn Cache
-        run: tar -xzvf /mnt/yarn-cache-${{ needs.Setup.outputs.Date }}.tgz
+        run: tar -xzvf /mnt/${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz
 
       - name: Run yarn install
         run: |
@@ -354,8 +358,9 @@ jobs:
           echo -e "Configure Yarn for inaccessable network"
           npm set registry http://localhost:4873/
           yarn config set npmRegistryServer http://localhost:4873/
-          echo -e "\nRun yarn install --immutable\n"
-          yarn install --immutable
+          echo -e "\nRun yarn install\n"
+          yarn install --immutable  --immutable-cache
+          corepack pack -o .yarn/yarn-pack.tar.gz
 
       - name: Run yarn
         run: |
@@ -380,7 +385,9 @@ jobs:
 
       - name: Show Artifacts
         run: |
-          echo "ISO and TGZ files:"
+          echo -e "Directory Listing:\n$(ls -1Ssh ${{ vars.COLLECTOR }}-*.*)"
+          echo -e "\nDirectory Size:\n$(du -chd0 ${{ vars.COLLECTOR }}-*.*)"
+          echo -e "\nISO and TGZ files:"
           ls -1Ssh *tgz* *iso* || echo "No ISO/TGZ files found"
           echo ""
           echo "Virus scan report:"
@@ -400,7 +407,9 @@ jobs:
 
       - name: Show Artifacts
         run: |
-          echo "ISO and TGZ files:"
+          echo -e "Directory Listing:\n$(ls -1Ssh ${{ vars.COLLECTOR }}-*.*)"
+          echo -e "\nDirectory Size:\n$(du -chd0 ${{ vars.COLLECTOR }}-*.*)"
+          echo -e "\nISO and TGZ files:"
           ls -1Ssh *tgz* *iso* || echo "No ISO/TGZ files found"
           echo ""
           echo "Virus scan report:"
