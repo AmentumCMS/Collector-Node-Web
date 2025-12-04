@@ -280,7 +280,7 @@ jobs:
       - name: List files to scan
         run: |
           echo "Files to be scanned:"
-          ls -lh
+          ls -1Ssh
 
       - name: Scan files for viruses
         id: virus_scan
@@ -301,6 +301,7 @@ jobs:
           echo "" >> ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
           echo "For detailed scan results, check the job logs and step summary." >> ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
 
+          echo -e "\nGenerated Virus Scan Report:\n$(cat ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt)"
       - name: Upload virus scan report
         if: always()
         uses: actions/upload-artifact@v4
