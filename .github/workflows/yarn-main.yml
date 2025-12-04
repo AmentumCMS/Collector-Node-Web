@@ -136,8 +136,8 @@ jobs:
 
       - name: TARchive verdaccio storage directory SHA HASH
         run: |
-          sha256sum -b verdaccio-${{ needs.Setup.outputs.Date }}.tgz | tee \
-            verdaccio-${{ needs.Setup.outputs.Date }}.tgz.sha
+          sha256sum -b ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz | tee \
+            ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz.sha
 
       - name: TARchive .yarn directory
         run: |
@@ -167,7 +167,7 @@ jobs:
       - name: Upload Logs
         uses: actions/upload-artifact@v4
         with:
-          name: Logs-${{ needs.Setup.outputs.Date }}.log
+          name: ${{ vars.COLLECTOR }}-verdaccio-logs-${{ needs.Setup.outputs.Date }}.log
           path: "verdaccio/*.log"
 
   MakeISO:
