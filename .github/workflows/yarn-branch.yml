@@ -304,10 +304,11 @@ jobs:
 
           echo -e "\nGenerated Virus Scan Report:\n$(cat ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt)"
 
-          echo -e "\nListing statistics:\n${{ steps.virus_scan.outputs.statistics }}" \
+          echo -e "\nListing statistics:\n${{ steps.virus_scan.outputs.statistics_summary }}" \
           | tee ${{ vars.COLLECTOR }}-virus-scan-statistics-${{ needs.Setup.outputs.Date }}.txt
           echo -e "\nListing statistics log:\n${{ steps.virus_scan.outputs.statistics_log }}" \
-          | tee -a ${{ vars.COLLECTOR }}-virus-scan-statistics-log-${{ needs.Setup.outputs.Date }}.txt
+          | tee ${{ vars.COLLECTOR }}-virus-scan-statistics-log-${{ needs.Setup.outputs.Date }}.txt
+
       - name: Upload virus scan report
         if: always()
         uses: actions/upload-artifact@v4
