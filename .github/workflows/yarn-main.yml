@@ -139,29 +139,11 @@ jobs:
           sha256sum -b ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz | tee \
             ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz.sha
 
-      - name: TARchive .yarn directory
-        run: |
-          tar -cvI pigz -f ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz \
-            .yarn yarn.lock \
-            | tee ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz.txt
-
-      - name: TARchive yarn-cache storage directory SHA HASH
-        run: |
-          sha256sum -b ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz | tee \
-            ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz.sha
-
       - name: Upload verdaccio artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz
           path: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz*
-          if-no-files-found: error
-
-      - name: Upload yarn-cache artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz
-          path: ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz*
           if-no-files-found: error
 
       - name: Upload Logs
