@@ -97,28 +97,29 @@ jobs:
           git config user.name "$(git log -n 1 --pretty=format:%an)"
           git config user.email "$(git log -n 1 --pretty=format:%ae)"
 
-      - name: Run yarn with verdaccio
+      - name: Run npm with Verdaccio
         run: |
           export XDG_DATA_HOME=$PWD
-
+      
           echo -e "\nRunning Verdaccio"
-          yarn dlx verdaccio >\
+          npx verdaccio >\
             verdaccio/verdaccio.log 2>\
             verdaccio/verdaccio-err.log &
           tail -f verdaccio/verdaccio.log & P=$! && sleep 20 && kill -9 $P
-          echo -e "\nTailing errors\n" &&\
+      
+          echo -e "\nTailing errors\n"
           tail verdaccio/verdaccio-err.log
-
-          echo -e "\nSetting up registries"
+      
+          echo -e "\nSetting up npm registry"
           npm set registry http://localhost:4873/
-          yarn config set npmRegistryServer http://localhost:4873/
-
-          echo -e "\nChecking Connectivity\n"
+      
+          echo -e "\nChecking connectivity\n"
           curl http://localhost:4873 -o test.html
           sleep 1
+      
+          echo -e "\nRunning npm install"
+          npm install --legacy-peer-deps
 
-          echo -e "\nRunning Yarn"
-          yarn install --refresh-lockfile
 
       - name: Listings
         run: |
