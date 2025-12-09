@@ -138,7 +138,7 @@ jobs:
           cd ISO/runtimes
 
           for major in 18 20 22 24; do
-            ver="${{ needs.Setup.outputs['v' + major] }}"
+            ver="${{ needs.Setup.outputs[format('v{0}', major)] }}"
             wget -nv "https://nodejs.org/dist/latest-v$major.x/node-$ver-x64.msi"
             wget -nv "https://nodejs.org/dist/latest-v$major.x/node-$ver-win-x64.zip"
             wget -nv "https://nodejs.org/dist/latest-v$major.x/node-$ver-linux-x64.tar.xz"
