@@ -1,0 +1,258 @@
+name: Node Collector Webclient - Branch Test
+run-name: ${{ github.actor }} is Collecting Nodi-ness 🚀
+
+on:
+  push:
+    branches-ignore:
+      - main
+  workflow_dispatch:
+
+jobs:
+  Setup:
+    runs-on: ubuntu-24.04
+    outputs:
+      Date: ${{ steps.date.outputs.date }}
+      v18:  ${{ steps.v.outputs.v18 }}
+      v20:  ${{ steps.v.outputs.v20 }}
+      v22:  ${{ steps.v.outputs.v22 }}
+      v24:  ${{ steps.v.outputs.v24 }}
+
+    steps:
+      - name: Get current date
+        id: date
+        run: echo "date=$(date '+%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
+
+      - name: Get current Node versions
+        id: v
+        run: |
+          node_versions=$(curl -s https://nodejs.org/dist/index.json)
+
+          get_version() { 
+            echo $node_versions |
+              jq -r --arg major "v$1" \
+                '[.[] | select(.version | startswith($major))][0].version'
+          }
+
+          echo "v18=$(get_version 18)" >> $GITHUB_OUTPUT
+          echo "v20=$(get_version 20)" >> $GITHUB_OUTPUT
+          echo "v22=$(get_version 22)" >> $GITHUB_OUTPUT
+          echo "v24=$(get_version 24)" >> $GITHUB_OUTPUT
+
+  Collect:
+    runs-on: ubuntu-24.04
+    needs: [Setup]
+
+    permissions:
+      contents: write
+      pull-requests: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: true
+
+      - name: Use Node.js ${{ needs.Setup.outputs.v18 }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ needs.Setup.outputs.v18 }}
+
+      - name: Configure Git identity
+        run: |
+          git config user.name  "$(git log -1 --pretty=format:'%an')"
+          git config user.email "$(git log -1 --pretty=format:'%ae')"
+
+      - name: Start Verdaccio and install dependencies
+        run: |
+          export XDG_DATA_HOME=$PWD
+
+          echo "Starting Verdaccio..."
+          npx verdaccio > verdaccio/out.log 2> verdaccio/err.log &
+          sleep 20
+
+          echo "npm registry -> Verdaccio"
+          npm set registry http://localhost:4873/
+
+          echo "Checking Verdaccio connectivity..."
+          curl -s http://localhost:4873 > test.html
+
+          echo "Installing npm dependencies..."
+          npm install --legacy-peer-deps
+
+      - name: List Verdaccio and node_modules size
+        run: |
+          ls -1Ssh verdaccio/*
+          du -chd0 node_modules verdaccio/*
+
+      - name: TAR npm cache directory
+        run: |
+          tar -cvI pigz -f ${{ vars.COLLECTOR }}-npmcache-${{ needs.Setup.outputs.Date }}.tgz \
+            node_modules \
+            | tee ${{ vars.COLLECTOR }}-npmcache-${{ needs.Setup.outputs.Date }}.tgz.txt
+
+      - name: SHA SUM npm cache archive
+        run: |
+          sha256sum -b ${{ vars.COLLECTOR }}-npmcache-${{ needs.Setup.outputs.Date }}.tgz | tee \
+            ${{ vars.COLLECTOR }}-npmcache-${{ needs.Setup.outputs.Date }}.tgz.sha
+
+      - name: Upload Verdaccio Archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: verdaccio-${{ needs.Setup.outputs.Date }}
+          path: verdaccio/*
+
+      - name: Upload npm cache archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: npmcache-${{ needs.Setup.outputs.Date }}
+          path: ${{ vars.COLLECTOR }}-npmcache-${{ needs.Setup.outputs.Date }}.tgz*
+          if-no-files-found: error
+
+      - name: Upload Logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: Logs-${{ needs.Setup.outputs.Date }}
+          path: "verdaccio/*.log"
+
+  MakeISO:
+    runs-on: ubuntu-24.04
+    needs: [Setup, Collect]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install mkisofs
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y mkisofs isomd5sum wget
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: ISO
+
+      - name: Download Node Installers
+        run: |
+          mkdir -p ISO/runtimes
+          cd ISO/runtimes
+
+          for major in 18 20 22 24; do
+            ver="${{ needs.Setup.outputs['v' + major] }}"
+            wget -nv "https://nodejs.org/dist/latest-v$major.x/node-$ver-x64.msi"
+            wget -nv "https://nodejs.org/dist/latest-v$major.x/node-$ver-win-x64.zip"
+            wget -nv "https://nodejs.org/dist/latest-v$major.x/node-$ver-linux-x64.tar.xz"
+          done
+
+          sha256sum -b * | tee node_runtimes.sha
+
+      - name: Copy markdown files
+        run: cp -v *.md ISO/
+
+      - name: Build ISO hash + structure
+        run: |
+          echo -e "Listing ISO contents:\n"
+          tree -L 3 ISO
+
+      - name: Make ISO
+        run: |
+          mkisofs -J -R -T -l \
+            -V '${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}' \
+            -A '${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}' \
+            -o ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso \
+            ISO
+
+      - name: Embed MD5
+        run: implantisomd5 ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
+
+      - name: Generate ISO SHA
+        run: sha256sum -b ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso | tee \
+              ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
+
+      - name: Upload ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: ISO-${{ needs.Setup.outputs.Date }}
+          path: "*${{ needs.Setup.outputs.Date }}.iso*"
+
+  VirusScan:
+    runs-on: ubuntu-24.04
+    needs: [Setup, MakeISO]
+
+    steps:
+      - name: Download ISO + TGZ
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Scan for viruses
+        id: scan
+        uses: hugoalh/scan-virus-ghaction/clamav@v0.20.1
+
+      - name: Save scan summary
+        if: always()
+        run: |
+          REPORT="${{ vars.COLLECTOR }}-virus-scan-${{ needs.Setup.outputs.Date }}.txt"
+          echo "Virus Scan Completed" > "$REPORT"
+          echo "Found: ${{ steps.scan.outputs.found }}" >> "$REPORT"
+        shell: bash
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VirusScan-${{ needs.Setup.outputs.Date }}
+          path: "*virus-scan*.txt"
+
+  OfflineTest:
+    runs-on: ubuntu-24.04
+    needs: [Setup, MakeISO]
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 22.x, 24.x]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download ISO + hashes
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Validate ISO Checksums
+        run: |
+          checkisomd5 *.iso || exit 1
+          sha256sum -cw *.iso.sha
+
+      - name: Mount ISO
+        run: sudo mount -o loop *.iso /mnt
+
+      - name: Extract npm cache
+        run: tar -xzvf /mnt/*npmcache*.tgz
+
+      - name: Run npm install (offline)
+        run: npm install --ignore-scripts || true
+
+  Release:
+    runs-on: ubuntu-24.04
+    needs: [Setup, VirusScan, OfflineTest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Show final artifacts
+        run: ls -lh
+
+  Sharepoint:
+    runs-on: ubuntu-24.04
+    needs: [Setup, VirusScan, OfflineTest]
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Show artifacts
+        run: ls -lh
