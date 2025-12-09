@@ -225,8 +225,8 @@ jobs:
 
       - name: Validate ISO Checksums
         run: |
-          checkisomd5 *.iso || exit 1
-          sha256sum -cw *.iso.sha
+          md5sum -c *.iso.md5
+          sha256sum -c *.iso.sha
 
       - name: Mount ISO
         run: sudo mount -o loop *.iso /mnt
