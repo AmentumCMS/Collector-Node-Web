@@ -231,7 +231,7 @@ jobs:
         run: tar -xzvf /mnt/*npmcache*.tgz
 
       - name: Run npm install (offline)
-        run: npm install --ignore-scripts || true
+        run: npm install          
 
   Release:
     runs-on: ubuntu-24.04
