@@ -77,7 +77,7 @@ jobs:
           curl -s http://localhost:4873 > test.html
 
           echo "Installing npm dependencies..."
-          npm install --legacy-peer-deps
+          npm install --legacy-peer-deps --optional
 
       - name: List Verdaccio and node_modules size
         run: |
