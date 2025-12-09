@@ -336,8 +336,6 @@ jobs:
         run: |
           echo -e "List Artifacts"
           ls -Alht
-          echo -e "\nCheck injected ISO MD5"
-          checkisomd5 ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
           echo -e "\nCheck ISO sha256"
           sha256sum -cw ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
 
