@@ -124,7 +124,7 @@ jobs:
       - name: Install mkisofs
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y mkisofs isomd5sum wget
+          sudo apt-get install -y mkisofs wget
   
       - name: Download Artifacts
         uses: actions/download-artifact@v4
@@ -167,9 +167,6 @@ jobs:
             -A '${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}' \
             -o ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso \
             ISO
-  
-      - name: Embed MD5
-        run: implantisomd5 ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
   
       - name: Generate ISO SHA
         run: sha256sum -b ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso | tee \
@@ -225,7 +222,6 @@ jobs:
 
       - name: Validate ISO Checksums
         run: |
-          md5sum -c *.iso.md5
           sha256sum -c *.iso.sha
 
       - name: Mount ISO
