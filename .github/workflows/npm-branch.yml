@@ -118,6 +118,10 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [Setup, Collect]
 
+    strategy:
+      matrix:
+        major: [18, 20, 22, 24]
+
     steps:
       - uses: actions/checkout@v4
 
@@ -132,17 +136,16 @@ jobs:
           merge-multiple: true
           path: ISO
 
-      - name: Download Node Installers
+      - name: Download Node Installer for v${{ matrix.major }}
         run: |
+          ver="${{ needs.Setup.outputs[format('v{0}', matrix.major)] }}"
+  
           mkdir -p ISO/runtimes
           cd ISO/runtimes
-
-          for major in 18 20 22 24; do
-            ver="${{ needs.Setup.outputs[format('v{0}', major)] }}"
-            wget -nv "https://nodejs.org/dist/latest-v$major.x/node-$ver-x64.msi"
-            wget -nv "https://nodejs.org/dist/latest-v$major.x/node-$ver-win-x64.zip"
-            wget -nv "https://nodejs.org/dist/latest-v$major.x/node-$ver-linux-x64.tar.xz"
-          done
+  
+          wget -nv "https://nodejs.org/dist/latest-v${{ matrix.major }}.x/node-$ver-x64.msi"
+          wget -nv "https://nodejs.org/dist/latest-v${{ matrix.major }}.x/node-$ver-win-x64.zip"
+          wget -nv "https://nodejs.org/dist/latest-v${{ matrix.major }}.x/node-$ver-linux-x64.tar.xz"
 
           sha256sum -b * | tee node_runtimes.sha
 
