@@ -117,7 +117,7 @@ jobs:
           sleep 1
 
           echo -e "\nRunning Yarn"
-          yarn install
+          yarn install --refresh-lockfile --registry http://localhost:4873
 
       - name: Listings
         run: |
