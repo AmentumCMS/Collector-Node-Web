@@ -109,6 +109,7 @@
     "redux": "^4.2.0",
     "sockjs-client": "^1.6.1",
     "three": "^0.145.0",
+    "tinyglobby": "^0.2.12",
     "typescript-cookie": "^1.0.4",
     "use-sound": "^4.0.1",
     "uuid": "^9.0.0",
