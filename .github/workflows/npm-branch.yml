@@ -114,69 +114,72 @@ jobs:
           name: Logs-${{ needs.Setup.outputs.Date }}
           path: "verdaccio/*.log"
 
-  MakeISO:
-    runs-on: ubuntu-24.04
-    needs: [Setup, Collect]
+MakeISO:
+  runs-on: ubuntu-24.04
+  needs: [Setup, Collect]
 
-    strategy:
-      matrix:
-        major: [18, 20, 22, 24]
+  steps:
+    - uses: actions/checkout@v4
 
-    steps:
-      - uses: actions/checkout@v4
+    - name: Install mkisofs
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install -y mkisofs isomd5sum wget
 
-      - name: Install mkisofs
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y mkisofs isomd5sum wget
+    - name: Download Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        merge-multiple: true
+        path: ISO
 
-      - name: Download Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          merge-multiple: true
-          path: ISO
+    - name: Download Node Installers (all majors)
+      run: |
+        mkdir -p ISO/runtimes
+        cd ISO/runtimes
 
-      - name: Download Node Installer for v${{ matrix.major }}
-        run: |
-          ver="${{ needs.Setup.outputs[format('v{0}', matrix.major)] }}"
-  
-          mkdir -p ISO/runtimes
-          cd ISO/runtimes
-  
-          wget -nv "https://nodejs.org/dist/latest-v${{ matrix.major }}.x/node-$ver-x64.msi"
-          wget -nv "https://nodejs.org/dist/latest-v${{ matrix.major }}.x/node-$ver-win-x64.zip"
-          wget -nv "https://nodejs.org/dist/latest-v${{ matrix.major }}.x/node-$ver-linux-x64.tar.xz"
+        for major in 18 20 22 24; do
+          ver="${{ needs.Setup.outputs['v18'] }}"
+          if [ "$major" = "20" ]; then ver="${{ needs.Setup.outputs['v20'] }}"; fi
+          if [ "$major" = "22" ]; then ver="${{ needs.Setup.outputs['v22'] }}"; fi
+          if [ "$major" = "24" ]; then ver="${{ needs.Setup.outputs['v24'] }}"; fi
 
-          sha256sum -b * | tee node_runtimes.sha
+          echo "Downloading Node $ver for major $major..."
 
-      - name: Copy markdown files
-        run: cp -v *.md ISO/
+          wget -nv "https://nodejs.org/dist/latest-v$major.x/node-$ver-x64.msi"
+          wget -nv "https://nodejs.org/dist/latest-v$major.x/node-$ver-win-x64.zip"
+          wget -nv "https://nodejs.org/dist/latest-v$major.x/node-$ver-linux-x64.tar.xz"
+        done
 
-      - name: Build ISO hash + structure
-        run: |
-          echo -e "Listing ISO contents:\n"
-          tree -L 3 ISO
+        sha256sum -b * | tee node_runtimes.sha
 
-      - name: Make ISO
-        run: |
-          mkisofs -J -R -T -l \
-            -V '${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}' \
-            -A '${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}' \
-            -o ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso \
-            ISO
+    - name: Copy markdown files
+      run: cp -v *.md ISO/
 
-      - name: Embed MD5
-        run: implantisomd5 ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
+    - name: Build ISO structure preview
+      run: |
+        echo -e "Listing ISO contents:\n"
+        tree -L 3 ISO
 
-      - name: Generate ISO SHA
-        run: sha256sum -b ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso | tee \
-              ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
+    - name: Make ISO
+      run: |
+        mkisofs -J -R -T -l \
+          -V '${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}' \
+          -A '${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}' \
+          -o ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso \
+          ISO
 
-      - name: Upload ISO
-        uses: actions/upload-artifact@v4
-        with:
-          name: ISO-${{ needs.Setup.outputs.Date }}
-          path: "*${{ needs.Setup.outputs.Date }}.iso*"
+    - name: Embed MD5
+      run: implantisomd5 ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
+
+    - name: Generate ISO SHA
+      run: sha256sum -b ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso | tee \
+            ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
+
+    - name: Upload ISO
+      uses: actions/upload-artifact@v4
+      with:
+        name: ISO-${{ needs.Setup.outputs.Date }}
+        path: "*${{ needs.Setup.outputs.Date }}.iso*"
 
   VirusScan:
     runs-on: ubuntu-24.04
