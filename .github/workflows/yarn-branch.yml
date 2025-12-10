@@ -143,7 +143,7 @@ jobs:
 
           cat > .npmrc <<'NPMRC'
           registry=http://localhost:4873
-          always-auth=true
+          always-auth=false
           strict-ssl=false
           NPMRC
           
