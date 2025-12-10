@@ -117,13 +117,14 @@ jobs:
           tail -n +1 verdaccio/verdaccio-err.log || true
           
           # Create a deterministic .yarnrc.yml for Berry
-          cat > .yarnrc.yml <<'YRC'
+          cat >> .yarnrc.yml <<'YRC'
           npmRegistryServer: "http://localhost:4873"
-          unsafeHttpWhitelist:
-            - localhost
-          enableImmutableInstalls: false
-          enableHardenedMode: false
           YRC
+
+          cat >> .npmrc <<'NPMRC'
+          registry=http://localhost:4873
+          strict-ssl=false
+          NPMRC
 
           # Verify Berry sees the registry we set
           yarn config get npmRegistryServer
@@ -131,12 +132,6 @@ jobs:
 
           echo -e "\nRunning Yarn"
           yarn install --refresh-lockfile
-
-          cat > .npmrc <<'NPMRC'
-          registry=http://localhost:4873
-          always-auth=false
-          strict-ssl=false
-          NPMRC
           
           # Fix for this one singular package.
           curl -L "http://localhost:4873/process/-/process-0.11.10.tgz" -o /tmp/process-0.11.10.tgz
