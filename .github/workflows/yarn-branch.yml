@@ -110,9 +110,6 @@ jobs:
             if curl -sS http://localhost:4873/ >/dev/null; then break; fi
             sleep 1
           done
-
-          # Fix for this one singular package.
-          npm install --no-save process@0.11.10 --registry=http://localhost:4873
           
           echo -e "\nTailing Verdaccio startup logs (last 50 lines)"
           tail -n 50 verdaccio/verdaccio.log || true
@@ -144,6 +141,14 @@ jobs:
           echo -e "\nRunning Yarn"
           yarn install --refresh-lockfile
 
+          cat > .npmrc <<'NPMRC'
+          registry=http://localhost:4873
+          always-auth=true
+          strict-ssl=false
+          NPMRC
+          
+          # Fix for this one singular package.
+          npm install --no-save process@0.11.10 --registry=http://localhost:4873
           echo -e "\nSanity-check Verdaccio saw the tarball"
 
           if ! grep -E "GET /process/-/process-0\.11\.10\.tgz" verdaccio/verdaccio.log >/dev/null; then
