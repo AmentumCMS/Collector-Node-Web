@@ -128,15 +128,6 @@ jobs:
           # Verify Berry sees the registry we set
           yarn config get npmRegistryServer
           echo -e "\nWiping caches fully (Berry)"
-          
-          # Remove node_modules to force full re-resolution
-          rm -rf node_modules
-          
-          # Clear both local (.yarn/cache) and global caches
-          yarn cache clean --all
-
-          # Optional: also clear npm’s cache (if any tool hits it)
-          npm cache clean --force
 
           echo -e "\nRunning Yarn"
           yarn install --refresh-lockfile
