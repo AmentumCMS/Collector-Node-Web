@@ -114,6 +114,8 @@ jobs:
           npm set registry http://localhost:4873/
           yarn config set npmRegistryServer http://localhost:4873/
 
+          yarn cache clear
+
           echo -e "\nChecking Connectivity\n"
           curl http://localhost:4873 -o test.html
           sleep 1
