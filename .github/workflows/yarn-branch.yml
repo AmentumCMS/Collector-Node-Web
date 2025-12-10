@@ -148,7 +148,8 @@ jobs:
           NPMRC
           
           # Fix for this one singular package.
-          npm install --no-save process@0.11.10 --registry=http://localhost:4873
+          npm pack process@0.11.10 --registry=http://localhost:4873
+
           echo -e "\nSanity-check Verdaccio saw the tarball"
 
           if ! grep -E "GET /process/-/process-0\.11\.10\.tgz" verdaccio/verdaccio.log >/dev/null; then
