@@ -119,7 +119,7 @@ jobs:
           sleep 1
 
           echo -e "\nRunning Yarn"
-          yarn install
+          yarn install --refresh-lockfile --registry http://localhost:4873
           corepack pack -o .yarn/yarn-pack.tar.gz
 
       - name: Listings
