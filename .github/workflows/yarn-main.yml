@@ -336,7 +336,7 @@ jobs:
       - name: Mount ISO
         run: sudo mount -v -o loop ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso /mnt
 
-      - name: UnTARchive Yarn Cache
+      - name: UnTARchive Verdaccio Cache
         run: tar -xzvf /mnt/${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz
 
       - name: Run yarn with verdaccio
@@ -362,7 +362,7 @@ jobs:
           sleep 1
 
           echo -e "\nRunning Yarn install with offline cache"
-          yarn install --immutable  --immutable-cache
+          yarn install --immutable
 
       - name: Upload Logs
         uses: actions/upload-artifact@v4
