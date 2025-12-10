@@ -145,8 +145,8 @@ jobs:
         run: |
           echo -e "\nListing verdaccio/*"
           ls -1Ssh verdaccio/*
-          echo -e "\nListing Consumption"
-          du -chd0 node_modules verdaccio/*
+          #echo -e "\nListing Consumption"
+          #du -chd0 node_modules verdaccio/*
 
       - name: TARchive verdaccio storage directory
         run: |
