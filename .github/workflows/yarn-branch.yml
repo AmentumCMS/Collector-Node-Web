@@ -122,7 +122,6 @@ jobs:
           npmRegistryServer: "http://localhost:4873"
           unsafeHttpWhitelist:
             - localhost
-          npmAlwaysAuth: true
           YRC
 
           # Verify Berry sees the registry we set
