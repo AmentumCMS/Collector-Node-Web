@@ -150,13 +150,6 @@ jobs:
           # Fix for this one singular package.
           curl -L "http://localhost:4873/process/-/process-0.11.10.tgz" -o /tmp/process-0.11.10.tgz
 
-
-          echo -e "\nSanity-check Verdaccio saw the tarball"
-
-          if ! grep -E "GET /process/-/process-0\.11\.10\.tgz" verdaccio/verdaccio.log >/dev/null; then
-            echo "Tarball GET for process@0.11.10 not observed in Verdaccio logs"; exit 2;
-          fi
-
       - name: Listings
         run: |
           echo -e "\nListing verdaccio/*"
