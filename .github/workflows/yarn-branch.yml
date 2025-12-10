@@ -118,6 +118,7 @@ jobs:
 
           echo -e "\nRunning Yarn"
           yarn install
+          corepack pack -o .yarn/yarn-pack.tar.gz
 
       - name: Listings
         run: |
@@ -147,7 +148,7 @@ jobs:
       - name: Upload Logs
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ vars.COLLECTOR }}-verdaccio-logs-${{ needs.Setup.outputs.Date }}.log
+          name: ${{ vars.COLLECTOR }}-verdaccio-logs-collect-${{ needs.Setup.outputs.Date }}.log
           path: "verdaccio/*.log"
 
   MakeISO:
@@ -334,23 +335,38 @@ jobs:
         run: sudo mount -v -o loop ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso /mnt
 
       - name: UnTARchive Yarn Cache
-        run: tar -xzvf /mnt/${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz
+        run: tar -xzvf /mnt/${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz
 
-      - name: Run yarn install
+      - name: Run yarn with verdaccio
         run: |
+          export XDG_DATA_HOME=$PWD
           echo -e "Setup Yarn"
           sudo corepack enable
-          echo -e "Configure Yarn for inaccessable network"
+
+          echo -e "\nRunning Verdaccio"
+          yarn dlx verdaccio >\
+            verdaccio/verdaccio.log 2>\
+            verdaccio/verdaccio-err.log &
+          tail -f verdaccio/verdaccio.log & P=$! && sleep 20 && kill -9 $P
+          echo -e "\nTailing errors\n" &&\
+          tail verdaccio/verdaccio-err.log
+
+          echo -e "\nSetting up registries"
           npm set registry http://localhost:4873/
           yarn config set npmRegistryServer http://localhost:4873/
-          echo -e "\nRun yarn install\n"
-          yarn install --immutable  --immutable-cache
-          corepack pack -o .yarn/yarn-pack.tar.gz
 
-      - name: Run yarn
-        run: |
-          echo -e "Run Yarn"
-          yarn run
+          echo -e "\nChecking Connectivity\n"
+          curl http://localhost:4873 -o test.html
+          sleep 1
+
+          echo -e "\nRunning Yarn install with offline cache"
+          yarn install --immutable  --immutable-cache
+
+      - name: Upload Logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ vars.COLLECTOR }}-verdaccio-logs-${{ matrix.node-version }}-${{ needs.Setup.outputs.Date }}.log
+          path: "verdaccio/*.log"
 
   Release:
     runs-on: ubuntu-24.04
