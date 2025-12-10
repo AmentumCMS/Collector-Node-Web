@@ -111,6 +111,8 @@ jobs:
             sleep 1
           done
 
+          # Fix for this one singular package.
+          npm install --no-save process@0.11.10 --registry=http://localhost:4873
           
           echo -e "\nTailing Verdaccio startup logs (last 50 lines)"
           tail -n 50 verdaccio/verdaccio.log || true
