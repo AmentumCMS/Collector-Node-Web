@@ -61,9 +61,49 @@ jobs:
           echo "Values:"
           cat $GITHUB_OUTPUT
 
+  UpdateVers:
+    runs-on: ubuntu-24.04
+    needs: [Date]
+    permissions:
+      contents: write
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ needs.Setup.outputs.v18 }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ needs.Setup.outputs.v18 }}
+
+      - name: Enable Corepack
+        run: |
+          echo -e "\nUpdating apt repositories"
+          sudo apt-get update -y
+
+          echo -e "\nEnabling Corepack for Yarn"
+          sudo corepack enable
+          echo -e "\nNode Version: $(node -v)"
+          echo "Yarn version: $(yarn -v)"
+
+      - name: Set up Git
+        run: |
+          git config user.name "$(git log -n 1 --pretty=format:%an)"
+          git config user.email "$(git log -n 1 --pretty=format:%ae)"
+
+      - name: Advance Dependency versions
+        run: |
+          set +ex
+          echo -e "\nRunning Yarn"
+          yarn install --refresh-lockfile
+          git commit -am "Update versions (${{ needs.Date.outputs.Date }})"
+          git push
+
   Collect:
     runs-on: ubuntu-24.04
-    needs: [Setup]
+    needs: [Setup, UpdateVers]
 
     permissions:
       contents: write
