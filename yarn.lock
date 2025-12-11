@@ -3071,6 +3071,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@stomp/stompjs@npm:^7.2.1":
+  version: 7.2.1
+  resolution: "@stomp/stompjs@npm:7.2.1"
+  checksum: c204a551e549ede739b47a47ac179d8b836060e1e8c9473a877ffcbd8341688e996c8021e11f308934e3d92e8a43f59d808aecce24dc6acb338691037ade8149
+  languageName: node
+  linkType: hard
+
 "@svgr/babel-plugin-add-jsx-attribute@npm:^6.5.1":
   version: 6.5.1
   resolution: "@svgr/babel-plugin-add-jsx-attribute@npm:6.5.1"
@@ -6847,6 +6854,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"debug@npm:^3.2.7":
+  version: 3.2.7
+  resolution: "debug@npm:3.2.7"
+  dependencies:
+    ms: "npm:^2.1.1"
+  checksum: 37d96ae42cbc71c14844d2ae3ba55adf462ec89fd3a999459dec3833944cd999af6007ff29c780f1c61153bcaaf2c842d1e4ce1ec621e4fc4923244942e4a02a
+  languageName: node
+  linkType: hard
+
 "debuglog@npm:^1.0.1":
   version: 1.0.1
   resolution: "debuglog@npm:1.0.1"
@@ -7808,6 +7824,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"eventsource@npm:^2.0.2":
+  version: 2.0.2
+  resolution: "eventsource@npm:2.0.2"
+  checksum: 0b8c70b35e45dd20f22ff64b001be9d530e33b92ca8bdbac9e004d0be00d957ab02ef33c917315f59bf2f20b178c56af85c52029bc8e6cc2d61c31d87d943573
+  languageName: node
+  linkType: hard
+
 "except@npm:^0.1.3":
   version: 0.1.3
   resolution: "except@npm:0.1.3"
@@ -7971,7 +7994,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"faye-websocket@npm:^0.11.3":
+"faye-websocket@npm:^0.11.3, faye-websocket@npm:^0.11.4":
   version: 0.11.4
   resolution: "faye-websocket@npm:0.11.4"
   dependencies:
@@ -7986,6 +8009,18 @@ __metadata:
   dependencies:
     bser: "npm:2.1.1"
   checksum: feae89ac148adb8f6ae8ccd87632e62b13563e6fb114cacb5265c51f585b17e2e268084519fb2edd133872f1d47a18e6bfd7e5e08625c0d41b93149694187581
+  languageName: node
+  linkType: hard
+
+"fdir@npm:^6.5.0":
+  version: 6.5.0
+  resolution: "fdir@npm:6.5.0"
+  peerDependencies:
+    picomatch: ^3 || ^4
+  peerDependenciesMeta:
+    picomatch:
+      optional: true
+  checksum: e345083c4306b3aed6cb8ec551e26c36bab5c511e99ea4576a16750ddc8d3240e63826cc624f5ae17ad4dc82e68a253213b60d556c11bfad064b7607847ed07f
   languageName: node
   linkType: hard
 
@@ -9105,7 +9140,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"inherits@npm:2, inherits@npm:2.0.4, inherits@npm:^2.0.1, inherits@npm:^2.0.3, inherits@npm:~2.0.3, inherits@npm:~2.0.4":
+"inherits@npm:2, inherits@npm:2.0.4, inherits@npm:^2.0.1, inherits@npm:^2.0.3, inherits@npm:^2.0.4, inherits@npm:~2.0.3, inherits@npm:~2.0.4":
   version: 2.0.4
   resolution: "inherits@npm:2.0.4"
   checksum: 4e531f648b29039fb7426fb94075e6545faa1eb9fe83c29f0b6d9e7263aceb4289d2d4557db0d428188eeb449cc7c5e77b0a0b2c4e248ff2a65933a0dee49ef2
@@ -11912,7 +11947,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ms@npm:2.1.3, ms@npm:^2.0.0, ms@npm:^2.1.2":
+"ms@npm:2.1.3, ms@npm:^2.0.0, ms@npm:^2.1.1, ms@npm:^2.1.2":
   version: 2.1.3
   resolution: "ms@npm:2.1.3"
   checksum: d924b57e7312b3b63ad21fc5b3dc0af5e78d61a1fc7cfb5457edaf26326bf62be5307cc87ffb6862ef1c2b33b0233cdb5d4f01c4c958cc0d660948b65a287a48
@@ -12016,6 +12051,7 @@ __metadata:
     "@mui/material": "npm:^5.10.15"
     "@mui/x-tree-view": "npm:^7.5.0"
     "@reduxjs/toolkit": "npm:^1.8.6"
+    "@stomp/stompjs": "npm:^7.2.1"
     "@svgr/webpack": "npm:^6.5.1"
     "@tanstack/react-query": "npm:^5.90.2"
     "@tanstack/react-table": "npm:^8.21.3"
@@ -12086,10 +12122,12 @@ __metadata:
     react-sizeme: "npm:^3.0.2"
     react-spinners: "npm:^0.13.8"
     redux: "npm:^4.2.0"
+    sockjs-client: "npm:^1.6.1"
     sonarqube-scanner: "npm:^4.2.0"
     style-loader: "npm:^3.3.1"
     terser-webpack-plugin: "npm:^5.3.6"
     three: "npm:^0.145.0"
+    tinyglobby: "npm:^0.2.12"
     ts-jest: "npm:^29.0.3"
     ts-loader: "npm:^9.4.1"
     ts-node: "npm:^10.9.1"
@@ -12863,6 +12901,13 @@ __metadata:
   version: 2.3.1
   resolution: "picomatch@npm:2.3.1"
   checksum: 26c02b8d06f03206fc2ab8d16f19960f2ff9e81a658f831ecb656d8f17d9edc799e8364b1f4a7873e89d9702dff96204be0fa26fe4181f6843f040f819dac4be
+  languageName: node
+  linkType: hard
+
+"picomatch@npm:^4.0.3":
+  version: 4.0.3
+  resolution: "picomatch@npm:4.0.3"
+  checksum: 9582c951e95eebee5434f59e426cddd228a7b97a0161a375aed4be244bd3fe8e3a31b846808ea14ef2c8a2527a6eeab7b3946a67d5979e81694654f939473ae2
   languageName: node
   linkType: hard
 
@@ -14557,6 +14602,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"sockjs-client@npm:^1.6.1":
+  version: 1.6.1
+  resolution: "sockjs-client@npm:1.6.1"
+  dependencies:
+    debug: "npm:^3.2.7"
+    eventsource: "npm:^2.0.2"
+    faye-websocket: "npm:^0.11.4"
+    inherits: "npm:^2.0.4"
+    url-parse: "npm:^1.5.10"
+  checksum: c1b55470aac0a31b0fc87806535b0e5cf5d6289584bcd03ffa9f50328a74a40098be63292d6862bd6f483ac9ef487ad60a8a5082feb1f9d0caee5bad6e50f3a9
+  languageName: node
+  linkType: hard
+
 "sockjs@npm:^0.3.24":
   version: 0.3.24
   resolution: "sockjs@npm:0.3.24"
@@ -15318,6 +15376,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"tinyglobby@npm:^0.2.12":
+  version: 0.2.15
+  resolution: "tinyglobby@npm:0.2.15"
+  dependencies:
+    fdir: "npm:^6.5.0"
+    picomatch: "npm:^4.0.3"
+  checksum: 869c31490d0d88eedb8305d178d4c75e7463e820df5a9b9d388291daf93e8b1eb5de1dad1c1e139767e4269fe75f3b10d5009b2cc14db96ff98986920a186844
+  languageName: node
+  linkType: hard
+
 "tmpl@npm:1.0.5":
   version: 1.0.5
   resolution: "tmpl@npm:1.0.5"
@@ -15865,7 +15933,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"url-parse@npm:^1.5.3":
+"url-parse@npm:^1.5.10, url-parse@npm:^1.5.3":
   version: 1.5.10
   resolution: "url-parse@npm:1.5.10"
   dependencies:
