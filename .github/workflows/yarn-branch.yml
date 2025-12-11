@@ -137,6 +137,11 @@ jobs:
           curl -L "http://localhost:4873/process/-/process-0.11.10.tgz" -o /tmp/process-0.11.10.tgz
           npm pack validator@0.1.1
 
+
+      - name: Second sweep from yarn.lock (prime Verdaccio tarball cache)
+        run: bash secondary-sweep.sh
+
+
       - name: Listings
         run: |
           echo -e "\nListing verdaccio/*"
