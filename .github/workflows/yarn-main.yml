@@ -362,7 +362,7 @@ jobs:
           sleep 1
 
           echo -e "\nRunning Yarn install with offline cache"
-          yarn install --immutable
+          yarn install
 
       - name: Upload Logs
         uses: actions/upload-artifact@v4
