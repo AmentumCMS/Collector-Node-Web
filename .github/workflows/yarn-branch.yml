@@ -63,7 +63,7 @@ jobs:
 
   UpdateVers:
     runs-on: ubuntu-24.04
-    needs: [Date]
+    needs: [Setup]
     permissions:
       contents: write
       pull-requests: read
