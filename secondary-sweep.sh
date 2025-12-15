@@ -53,39 +53,45 @@ semaphore() {
 
 sweep_one() {
   local name="$1" version="$2"
+
   local enc; enc="$(encode_pkg "$name")"
 
-  # Fetch Verdaccio metadata for this package (npm registry API)
-  # Docs: https://github.com/npm/registry/blob/master/docs/responses/package-metadata.md
-  local meta; meta="$(curl -fsSL "$VERDACCIO_URL/$enc")" || {
+  local meta
+  meta="$(curl -fsSL "$VERDACCIO_URL/$enc")" || {
     echo "WARN: metadata fetch failed for $name@$version" >&2
     return
   }
 
-  # Get tarball URL for the specific version from metadata
   local tarball
-  tarball="$(jq -r --arg v "$version" '.versions[$v].dist.tarball // ""' <<<"$meta" 2>/dev/null || echo "")"
+  tarball="$(jq -r --arg v "$version" '.versions[$v].dist.tarball // ""' <<<"$meta" 2>/dev/null)"
 
-  # If metadata doesn't list a tarball (rare), construct Verdaccio-local path:
-  #   /<encoded-name>/-/<base>  where base = "<unscoped-name>-<version>.tgz"
   local unscoped="${name##*/}"
   local base="${unscoped}-${version}.tgz"
   local local_url="$VERDACCIO_URL/$enc/-/$base"
 
-  # Prefer hitting Verdaccio directly to prime the cache
-  local dest="$OUT_DIR/${name//@/at}-${version}.tgz"
+  # SAFE filename (no slashes)
+  local safe_name="${name//@/at}"
+  safe_name="${safe_name//\//-}"
+  local dest="$OUT_DIR/${safe_name}-${version}.tgz"
+  local tmp="${dest}.part"
+
   echo "GET $local_url  ->  $dest"
-  if ! curl -fsSL -o "$dest" "$local_url"; then
+
+  if ! curl -fSL --retry 3 --retry-delay 1 -o "$tmp" "$local_url"; then
     if [ -n "$tarball" ]; then
       echo "FALLBACK GET $tarball  ->  $dest"
-      curl -fsSL -o "$dest" "$tarball" || {
+      curl -fSL --retry 3 --retry-delay 1 -o "$tmp" "$tarball" || {
         echo "ERROR: failed to download tarball for $name@$version" >&2
-        rm -f "$dest"
+        rm -f "$tmp"
+        return
       }
     else
-      echo "WARN: no tarball URL and local path failed for $name@$version" >&2
+      echo "WARN: no tarball URL for $name@$version" >&2
+      return
     fi
   fi
+
+  mv "$tmp" "$dest"
 }
 
 for line in "${pairs[@]}"; do
