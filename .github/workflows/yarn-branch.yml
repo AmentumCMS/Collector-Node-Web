@@ -90,7 +90,17 @@ jobs:
           sudo corepack enable
           echo -e "\nNode Version: $(node -v)"
           echo "Yarn version: $(yarn -v)"
+          
+      - name: Install Syft
+        uses: anchore/syft-action@v0
+        with:
+          install-only: true
 
+      - name: Install Grype
+        uses: anchore/grype-action@v0
+        with:
+          install-only: true
+          
       - name: Set up Git
         run: |
           git config user.name "$(git log -n 1 --pretty=format:%an)"
@@ -148,6 +158,25 @@ jobs:
           ls -1Ssh verdaccio/*
           #echo -e "\nListing Consumption"
           #du -chd0 node_modules verdaccio/*
+          
+      - name: Generate SBOM (Verdaccio)
+        run: |
+          syft dir:verdaccio \
+            -o cyclonedx-json \
+            > ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}-sbom.json
+
+      - name: Generate SBOM (Yarn Cache)
+        run: |
+          syft dir:.yarn/cache \
+            -o cyclonedx-json \
+            > ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}-sbom.json
+ 
+      - name: Grype scan (Verdaccio)
+        run: |
+          grype sbom:${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}-sbom.json \
+            --only-fixed \
+            --fail-on high \
+            -o table
 
       - name: TARchive verdaccio storage directory
         run: |
