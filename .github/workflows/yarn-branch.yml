@@ -156,6 +156,11 @@ jobs:
           path: verdaccio
           format: cyclonedx-json
           output-file: verdaccio-sbom.cdx.json
+          args: >
+            --catalogers npm
+            --scope all-layers
+            --file digests
+            --expand-archives
       
       # SBOM for Yarn Cache
       - name: SBOM for Yarn Cache
@@ -164,6 +169,11 @@ jobs:
           path: .yarn/cache
           format: cyclonedx-json
           output-file: yarn-cache-sbom.cdx.json
+          args: >
+            --catalogers npm
+            --scope all-layers
+            --file digests
+            --expand-archives
 
       # Scan Verdaccio SBOM
       - name: Scan Verdaccio SBOM
