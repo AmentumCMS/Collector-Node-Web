@@ -91,16 +91,6 @@ jobs:
           echo -e "\nNode Version: $(node -v)"
           echo "Yarn version: $(yarn -v)"
           
-      - name: Install Syft
-        uses: anchore/syft-action@v0
-        with:
-          install-only: true
-
-      - name: Install Grype
-        uses: anchore/grype-action@v0
-        with:
-          install-only: true
-          
       - name: Set up Git
         run: |
           git config user.name "$(git log -n 1 --pretty=format:%an)"
@@ -159,24 +149,31 @@ jobs:
           #echo -e "\nListing Consumption"
           #du -chd0 node_modules verdaccio/*
           
-      - name: Generate SBOM (Verdaccio)
-        run: |
-          syft dir:verdaccio \
-            -o cyclonedx-json \
-            > ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}-sbom.json
+      # Generate SBOMs
+      - name: SBOM for Verdaccio
+        uses: anchore/sbom-action@v0
+        with:
+          path: verdaccio
+          format: cyclonedx-json
 
-      - name: Generate SBOM (Yarn Cache)
-        run: |
-          syft dir:.yarn/cache \
-            -o cyclonedx-json \
-            > ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}-sbom.json
- 
-      - name: Grype scan (Verdaccio)
-        run: |
-          grype sbom:${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}-sbom.json \
-            --only-fixed \
-            --fail-on high \
-            -o table
+      - name: SBOM for Yarn Cache
+        uses: anchore/sbom-action@v0
+        with:
+          path: .yarn/cache
+          format: cyclonedx-json
+
+      # Scan based on SBOM
+      - name: Scan Verdaccio SBOM
+        uses: anchore/scan-action@v6
+        with:
+          sbom: "./verdaccio-sbom.spdx.json"
+          severity-cutoff: high
+
+      - name: Scan Yarn Cache SBOM
+        uses: anchore/scan-action@v6
+        with:
+          sbom: "./yarn-cache-sbom.spdx.json"
+          severity-cutoff: high
 
       - name: TARchive verdaccio storage directory
         run: |
