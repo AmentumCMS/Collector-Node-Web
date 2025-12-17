@@ -158,7 +158,7 @@ jobs:
           upload-artifact: true
       
       - name: Scan app SBOM
-        uses: anchore/scan-action@v0
+        uses: anchore/scan-action@v6
         with:
           sbom: app-sbom.cdx.json
           severity-cutoff: high
