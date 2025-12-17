@@ -149,31 +149,40 @@ jobs:
           #echo -e "\nListing Consumption"
           #du -chd0 node_modules verdaccio/*
           
-      # Generate SBOMs
+      # SBOM for Verdaccio
       - name: SBOM for Verdaccio
         uses: anchore/sbom-action@v0
         with:
           path: verdaccio
           format: cyclonedx-json
-
+          output-file: verdaccio-sbom.cdx.json
+      
+      # SBOM for Yarn Cache
       - name: SBOM for Yarn Cache
         uses: anchore/sbom-action@v0
         with:
           path: .yarn/cache
           format: cyclonedx-json
+          output-file: yarn-cache-sbom.cdx.json
 
-      # Scan based on SBOM
+      # Scan Verdaccio SBOM
       - name: Scan Verdaccio SBOM
         uses: anchore/scan-action@v6
         with:
-          sbom: "./verdaccio-sbom.spdx.json"
+          sbom: verdaccio-sbom.cdx.json
           severity-cutoff: high
-
+          output-format: json
+          output-file: verdaccio-vulns.json
+      
+      # Scan Yarn Cache SBOM
       - name: Scan Yarn Cache SBOM
         uses: anchore/scan-action@v6
         with:
-          sbom: "./yarn-cache-sbom.spdx.json"
+          sbom: yarn-cache-sbom.cdx.json
           severity-cutoff: high
+          output-format: json
+          output-file: yarn-cache-vulns.json
+
 
       - name: TARchive verdaccio storage directory
         run: |
