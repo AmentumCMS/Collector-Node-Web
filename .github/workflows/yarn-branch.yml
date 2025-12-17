@@ -165,6 +165,7 @@ jobs:
           output-format: table
           output-file: grype-report.txt
           upload-artifact: true
+          scan-type: npm
 
       - name: TARchive verdaccio storage directory
         run: |
