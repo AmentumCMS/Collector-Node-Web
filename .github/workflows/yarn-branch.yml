@@ -162,6 +162,9 @@ jobs:
         with:
           sbom: app-sbom.cdx.json
           severity-cutoff: high
+          output-format: table
+          output-file: grype-report.txt
+          upload-artifact: true
 
       - name: TARchive verdaccio storage directory
         run: |
