@@ -129,7 +129,7 @@
   "resolutions": {
     "prismjs": "1.30.0",
     "js-yaml": "4.1.1",
-    "@babel/runtime": "7.28.10",
+    "@babel/runtime": "7.28.4",
     "mdast-util-to-hast": "13.2.1",
     "brace-expansion": "1.1.12",
     "lodash": "^4.17.21",
@@ -150,5 +150,6 @@
     "esbuild": "^0.27.2"
   }
 }
+
 
 
