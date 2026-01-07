@@ -115,6 +115,7 @@ jobs:
           tail -n 50 verdaccio/verdaccio.log || true
           echo -e "\nVerdaccio errors (if any)"
           tail -n +1 verdaccio/verdaccio-err.log || true
+          echo -e "\nVerdaccio is ready. Proceeding with Yarn install.\n"
 
           # Create a deterministic .yarnrc.yml for Berry
           cat >> .yarnrc.yml <<'YRC'
@@ -137,18 +138,17 @@ jobs:
           curl -L "http://localhost:4873/process/-/process-0.11.10.tgz" -o /tmp/process-0.11.10.tgz
           npm pack validator@0.1.1
 
-
       - name: Second sweep from yarn.lock (prime Verdaccio tarball cache)
         run: bash secondary-sweep.sh
-
 
       - name: Listings
         run: |
           echo -e "\nListing verdaccio/*"
           ls -1Ssh verdaccio/*
-          #echo -e "\nListing Consumption"
-          #du -chd0 node_modules verdaccio/*
-          
+          echo -e "\nListing Consumption"
+          du -chd0 node_modules verdaccio/*
+          echo
+
       - name: Generate app SBOM (node_modules)
         uses: anchore/sbom-action@v0
         with:
@@ -163,8 +163,6 @@ jobs:
           severity-cutoff: high
           output-format: table
           output-file: grype-report.txt
-          upload-artifact: true
-          scan-type: npm
 
       - name: TARchive verdaccio storage directory
         run: |

@@ -101,16 +101,15 @@ jobs:
       - name: Run yarn with verdaccio
         run: |
           export XDG_DATA_HOME=$PWD
-          mkdir -p verdaccio
+
           echo -e "\nRunning Verdaccio"
-          yarn dlx verdaccio > verdaccio/verdaccio.log 2> verdaccio/verdaccio-err.log &
+          yarn dlx verdaccio >\
+            verdaccio/verdaccio.log 2>\
+            verdaccio/verdaccio-err.log &
           
-          # Wait until Verdaccio is ready
+          # Wait until Verdaccio is ready (adjust if needed)
           for i in {1..30}; do
-            if curl -sS http://localhost:4873/ >/dev/null; then
-              echo "Verdaccio is ready."
-              break
-            fi
+            if curl -sS http://localhost:4873/ >/dev/null; then break; fi
             sleep 1
           done
 
@@ -118,6 +117,7 @@ jobs:
           tail -n 50 verdaccio/verdaccio.log || true
           echo -e "\nVerdaccio errors (if any)"
           tail -n +1 verdaccio/verdaccio-err.log || true
+          echo -e "\nVerdaccio is ready. Proceeding with Yarn install.\n"
 
           # Create a deterministic .yarnrc.yml for Berry
           cat >> .yarnrc.yml <<'YRC'
@@ -129,16 +129,16 @@ jobs:
           strict-ssl=false
           NPMRC
 
-          echo -e "\nSetting up registries"
-          npm set registry http://localhost:4873/
-          yarn config set npmRegistryServer http://localhost:4873/
-
-          echo -e "\nChecking Connectivity\n"
-          curl http://localhost:4873 -o test.html
-          sleep 1
+          # Verify Berry sees the registry we set
+          yarn config get npmRegistryServer
 
           echo -e "\nRunning Yarn"
-          yarn install --refresh-lockfile --registry http://localhost:4873
+          yarn install --refresh-lockfile
+          corepack pack -o .yarn/yarn-pack.tar.gz
+          
+          # Fix for this one singular package.
+          curl -L "http://localhost:4873/process/-/process-0.11.10.tgz" -o /tmp/process-0.11.10.tgz
+          npm pack validator@0.1.1
 
       - name: Second sweep from yarn.lock (prime Verdaccio tarball cache)
         run: bash secondary-sweep.sh
@@ -147,6 +147,9 @@ jobs:
         run: |
           echo -e "\nListing verdaccio/*"
           ls -1Ssh verdaccio/*
+          echo -e "\nListing Consumption"
+          du -chd0 node_modules verdaccio/*
+          echo
 
       - name: Generate app SBOM (node_modules)
         uses: anchore/sbom-action@v0
@@ -162,8 +165,6 @@ jobs:
           severity-cutoff: high
           output-format: table
           output-file: grype-report.txt
-          upload-artifact: true
-          scan-type: npm
 
       - name: TARchive verdaccio storage directory
         run: |
