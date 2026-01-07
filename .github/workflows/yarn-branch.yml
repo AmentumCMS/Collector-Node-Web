@@ -242,7 +242,7 @@ jobs:
             echo -e "\nDownloading Node.js $VERSION"
             for FILE in x64.msi win-x64.zip linux-x64.tar.xz; do
               curl -sSLw "Downloaded node-${VERSION}-${FILE} (%{http_code}: %{size_download}B)\n"\
-              https://nodejs.org/dist/latest-v${VERSION}.x/node-${VERSION}-${FILE} \
+              https://nodejs.org/dist/latest-${VERSION%%.*}.x/node-${VERSION}-${FILE} \
                 -o node-${VERSION}-${FILE}
             done
           done
@@ -262,6 +262,7 @@ jobs:
                 -o yarn-${RELEASE_TAG}.$FILE
             done
           done
+          echo -e "\nListing downloaded files:\n$(ls -1Ssh)"
           echo -e "\nHashing Files:"
           sha256sum -b * | tee yarnpkg.sha
 
