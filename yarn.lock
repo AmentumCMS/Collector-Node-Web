@@ -8066,6 +8066,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"corepack@npm:^0.34.5":
+  version: 0.34.5
+  resolution: "corepack@npm:0.34.5"
+  bin:
+    corepack: ./dist/corepack.js
+    pnpm: ./dist/pnpm.js
+    pnpx: ./dist/pnpx.js
+    yarn: ./dist/yarn.js
+    yarnpkg: ./dist/yarnpkg.js
+  checksum: 10c0/7dfabc548a994910496da700a9c6e92cd99a7b7631fa02b98df2ee4415fb45ba88594e8053ca2b68dedbd558759287e6488294e495be83db01f6e5a4f4360239
+  languageName: node
+  linkType: hard
+
 "cosmiconfig@npm:^7.0.0, cosmiconfig@npm:^7.0.1":
   version: 7.1.0
   resolution: "cosmiconfig@npm:7.1.0"
@@ -14282,6 +14295,7 @@ __metadata:
     chart.js: "npm:^4.4.3"
     cookie-signature: "npm:1.0.6"
     copy-webpack-plugin: "npm:^11.0.0"
+    corepack: "npm:^0.34.5"
     css-loader: "npm:^6.7.1"
     d3: "npm:^7.6.1"
     esbuild-loader: "npm:^4.4.0"
