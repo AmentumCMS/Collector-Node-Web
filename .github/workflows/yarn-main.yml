@@ -113,6 +113,7 @@ jobs:
             fi
             sleep 1
           done
+
           echo -e "\nTailing Verdaccio startup logs (last 50 lines)"
           tail -n 50 verdaccio/verdaccio.log || true
           echo -e "\nVerdaccio errors (if any)"
@@ -122,6 +123,7 @@ jobs:
           cat >> .yarnrc.yml <<'YRC'
           npmRegistryServer: "http://localhost:4873"
           YRC
+
           cat >> .npmrc <<'NPMRC'
           registry=http://localhost:4873
           strict-ssl=false
@@ -247,8 +249,22 @@ jobs:
           wget -nv https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-linux-x64.tar.xz
           sha256sum -b * | tee node_runtimes.sha
 
+      - name: Download Yarn Installers
+        run: |
+          echo -e "\nDownloading installers\n"
+          mkdir -p ISO/yarnpkg
+          cd ISO/yarnpkg
+          
+          for RELEASE_TAG in v4.12.0 v4.10.2 v4.5.3 v4.1.1 v4.0.2; do
+            echo -e "\nDownloading Yarn $RELEASE_TAG\n"
+            gh release download $RELEASE_TAG \
+              --repo yarnpkg/berry \
+              --pattern "*"
+          done
+          sha256sum -b * | tee yarnpkg.sha
+
       - name: Copy Markdowns to ISO
-        run: cp -v *.md ISO/ || true
+        run: cp -v *.md ISO/
 
       - name: Show Artifacts
         run: |
@@ -262,7 +278,7 @@ jobs:
           sha256sum -b * vscode/* runtimes/* | tee \
             ../${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.sha
           cd -
-          cp -v ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.??? ISO/ || true
+          cp -v ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.??? ISO/
 
       - name: Make ISO
         run: |
