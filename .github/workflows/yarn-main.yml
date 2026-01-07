@@ -110,8 +110,7 @@ jobs:
           # Wait until Verdaccio is ready (adjust if needed)
           echo -n "Waiting for Verdaccio to be ready:"
           for i in {1..30}; do
-            if curl -s http://localhost:4873/ -o /dev/null; then break; fi
-            echo -n "$i "
+            if curl -sw "$i " http://localhost:4873/ -o /dev/null; then break; fi
             sleep 1
           done
 
@@ -151,7 +150,7 @@ jobs:
       - name: Listings
         run: |
           echo -e "\nListing verdaccio/*"
-          tree -d verdaccio/*
+          tree -d verdaccio
           echo -e "\nListing Consumption"
           du -chd0 node_modules verdaccio/*
           echo
