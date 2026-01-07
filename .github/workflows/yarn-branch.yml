@@ -106,7 +106,7 @@ jobs:
             verdaccio/verdaccio-err.log &
           
           # Wait until Verdaccio is ready (adjust if needed)
-          echo -n "Waiting for Verdaccio to be ready:"
+          echo -n "Waiting for Verdaccio to be ready: "
           for i in {1..30}; do
             if curl -sw "$i " http://localhost:4873/ -o /dev/null; then break; fi
             sleep 1
@@ -225,7 +225,7 @@ jobs:
       - name: Install mkisofs
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y mkisofs isomd5sum wget
+          sudo apt-get install -y mkisofs isomd5sum wget tree
 
       - name: Download Artifacts
         uses: actions/download-artifact@v5
@@ -238,18 +238,18 @@ jobs:
           echo -e "\nDownloading installers\n"
           mkdir -p ISO/runtimes
           cd ISO/runtimes
-          wget -nv https://nodejs.org/dist/latest-v18.x/node-${{ needs.Setup.outputs.v18 }}-x64.msi
-          wget -nv https://nodejs.org/dist/latest-v20.x/node-${{ needs.Setup.outputs.v20 }}-x64.msi
-          wget -nv https://nodejs.org/dist/latest-v22.x/node-${{ needs.Setup.outputs.v22 }}-x64.msi
-          wget -nv https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-x64.msi
-          wget -nv https://nodejs.org/dist/latest-v18.x/node-${{ needs.Setup.outputs.v18 }}-win-x64.zip
-          wget -nv https://nodejs.org/dist/latest-v20.x/node-${{ needs.Setup.outputs.v20 }}-win-x64.zip
-          wget -nv https://nodejs.org/dist/latest-v22.x/node-${{ needs.Setup.outputs.v22 }}-win-x64.zip
-          wget -nv https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-win-x64.zip
-          wget -nv https://nodejs.org/dist/latest-v18.x/node-${{ needs.Setup.outputs.v18 }}-linux-x64.tar.xz
-          wget -nv https://nodejs.org/dist/latest-v20.x/node-${{ needs.Setup.outputs.v20 }}-linux-x64.tar.xz
-          wget -nv https://nodejs.org/dist/latest-v22.x/node-${{ needs.Setup.outputs.v22 }}-linux-x64.tar.xz
-          wget -nv https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-linux-x64.tar.xz
+          curl -sSLOw "node-${{ needs.Setup.outputs.v18 }}-x64.msi\n" https://nodejs.org/dist/latest-v18.x/node-${{ needs.Setup.outputs.v18 }}-x64.msi
+          curl -sSLOw "node-${{ needs.Setup.outputs.v20 }}-x64.msi\n" https://nodejs.org/dist/latest-v20.x/node-${{ needs.Setup.outputs.v20 }}-x64.msi
+          curl -sSLOw "node-${{ needs.Setup.outputs.v22 }}-x64.msi\n" https://nodejs.org/dist/latest-v22.x/node-${{ needs.Setup.outputs.v22 }}-x64.msi
+          curl -sSLOw "node-${{ needs.Setup.outputs.v24 }}-x64.msi\n" https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-x64.msi
+          curl -sSLOw "node-${{ needs.Setup.outputs.v18 }}-win-x64.zip\n" https://nodejs.org/dist/latest-v18.x/node-${{ needs.Setup.outputs.v18 }}-win-x64.zip
+          curl -sSLOw "node-${{ needs.Setup.outputs.v20 }}-win-x64.zip\n" https://nodejs.org/dist/latest-v20.x/node-${{ needs.Setup.outputs.v20 }}-win-x64.zip
+          curl -sSLOw "node-${{ needs.Setup.outputs.v22 }}-win-x64.zip\n" https://nodejs.org/dist/latest-v22.x/node-${{ needs.Setup.outputs.v22 }}-win-x64.zip
+          curl -sSLOw "node-${{ needs.Setup.outputs.v24 }}-win-x64.zip\n" https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-win-x64.zip
+          curl -sSLOw "node-${{ needs.Setup.outputs.v18 }}-linux-x64.tar.xz\n" https://nodejs.org/dist/latest-v18.x/node-${{ needs.Setup.outputs.v18 }}-linux-x64.tar.xz
+          curl -sSLOw "node-${{ needs.Setup.outputs.v20 }}-linux-x64.tar.xz\n" https://nodejs.org/dist/latest-v20.x/node-${{ needs.Setup.outputs.v20 }}-linux-x64.tar.xz
+          curl -sSLOw "node-${{ needs.Setup.outputs.v22 }}-linux-x64.tar.xz\n" https://nodejs.org/dist/latest-v22.x/node-${{ needs.Setup.outputs.v22 }}-linux-x64.tar.xz
+          curl -sSLOw "node-${{ needs.Setup.outputs.v24 }}-linux-x64.tar.xz\n" https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-linux-x64.tar.xz
           sha256sum -b * | tee node_runtimes.sha
 
       - name: Download Yarn Installers
@@ -258,6 +258,9 @@ jobs:
           mkdir -p ISO/yarnpkg
           cd ISO/yarnpkg
           
+          echo -e "\nListing releases:"
+          gh release list --repo yarnpkg/berry
+
           for RELEASE_TAG in v4.12.0 v4.10.2 v4.5.3 v4.1.1 v4.0.2; do
             echo -e "\nDownloading Yarn $RELEASE_TAG\n"
             gh release download $RELEASE_TAG \
