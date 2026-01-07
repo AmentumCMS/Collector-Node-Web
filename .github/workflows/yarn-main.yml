@@ -237,26 +237,26 @@ jobs:
 
       - name: Download Node Installers
         run: |
-          echo -e "\nDownloading installers\n"
+          echo -e "\nDownloading installers"
           mkdir -p ISO/runtimes
           cd ISO/runtimes
           for VERSION in ${{ needs.Setup.outputs.v18 }} ${{ needs.Setup.outputs.v20 }} ${{ needs.Setup.outputs.v22 }} ${{ needs.Setup.outputs.v24 }}; do
-            echo -e "\nDownloading Node.js $VERSION\n"
-            curl -sSLOw "node-${VERSION}-x64.msi\n" https://nodejs.org/dist/latest-v${VERSION}.x/node-${VERSION}-x64.msi
-            curl -sSLOw "node-${VERSION}-win-x64.zip\n" https://nodejs.org/dist/latest-v${VERSION}.x/node-${VERSION}-win-x64.zip
-            curl -sSLOw "node-${VERSION}-linux-x64.tar.xz\n" https://nodejs.org/dist/latest-v${VERSION}.x/node-${VERSION}-linux-x64.tar.xz
+            echo -e "\nDownloading Node.js $VERSION"
+            for FILE in x64.msi win-x64.zip linux-x64.tar.xz; do
+              curl -sSLOw "Downloaded node-${VERSION}-${FILE}\n" https://nodejs.org/dist/latest-v${VERSION}.x/node-${VERSION}-${FILE}
+            done
           done
-          
+          echo -e "\nHashing Files:"
           sha256sum -b * | tee node_runtimes.sha
 
       - name: Download Yarn
         run: |
-          echo -e "\nDownloading yarnpkgs\n"
+          echo -e "\nDownloading yarnpkgs:"
           mkdir -p ISO/yarnpkg
           cd ISO/yarnpkg
           for RELEASE_TAG in 4.12.0 4.10.2 4.5.3; do
             for FILE in js js.sign js.pem; do
-              curl -sSLw "Downloaded Yarn $RELEASE_TAG $FILE\n" \
+              curl -sSLw "Downloaded yarn-$RELEASE_TAG.$FILE\n" \
                 https://repo.yarnpkg.com/$RELEASE_TAG/packages/yarnpkg-cli/bin/yarn.$FILE \
                 -o yarn-${RELEASE_TAG}.$FILE
             done
