@@ -102,14 +102,16 @@ jobs:
         run: |
           export XDG_DATA_HOME=$PWD
 
-          echo -e "\nRunning Verdaccio"
+          echo -e "\nStarting Verdaccio"
           yarn dlx verdaccio >\
             verdaccio/verdaccio.log 2>\
             verdaccio/verdaccio-err.log &
           
           # Wait until Verdaccio is ready (adjust if needed)
+          echo -n "Waiting for Verdaccio to be ready:"
           for i in {1..30}; do
-            if curl -sS http://localhost:4873/ >/dev/null; then break; fi
+            if curl -s http://localhost:4873/ -o /dev/null; then break; fi
+            echo -n "$i "
             sleep 1
           done
 
@@ -129,15 +131,18 @@ jobs:
           strict-ssl=false
           NPMRC
 
-          # Verify Berry sees the registry we set
+          echo -en "\nVerify Berry sees the registry we set: "
           yarn config get npmRegistryServer
 
           echo -e "\nRunning Yarn"
           yarn install --refresh-lockfile
           corepack pack -o .yarn/yarn-pack.tar.gz
           
-          # Fix for this one singular package.
-          curl -L "http://localhost:4873/process/-/process-0.11.10.tgz" -o /tmp/process-0.11.10.tgz
+          echo -e "\nFixes for individual packages."
+          curl -sSLw "process-0.11.10.tgz" "http://localhost:4873/process/-/process-0.11.10.tgz" \
+            -o /tmp/process-0.11.10.tgz
+
+          echo -e "\nPacking validator@0.1.1"
           npm pack validator@0.1.1
 
       - name: Second sweep from yarn.lock (prime Verdaccio tarball cache)
@@ -146,7 +151,7 @@ jobs:
       - name: Listings
         run: |
           echo -e "\nListing verdaccio/*"
-          ls -1Ssh verdaccio/*
+          tree -d verdaccio/*
           echo -e "\nListing Consumption"
           du -chd0 node_modules verdaccio/*
           echo
