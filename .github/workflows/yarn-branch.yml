@@ -147,7 +147,7 @@ jobs:
 
       - name: Listings
         run: |
-          echo -e "\nListing verdaccio/*"
+          echo -e "\nListing verdaccio"
           tree -d verdaccio
           echo -e "\nListing Consumption"
           du -chd0 node_modules verdaccio/*
@@ -238,35 +238,28 @@ jobs:
           echo -e "\nDownloading installers\n"
           mkdir -p ISO/runtimes
           cd ISO/runtimes
-          curl -sSLOw "node-${{ needs.Setup.outputs.v18 }}-x64.msi\n" https://nodejs.org/dist/latest-v18.x/node-${{ needs.Setup.outputs.v18 }}-x64.msi
-          curl -sSLOw "node-${{ needs.Setup.outputs.v20 }}-x64.msi\n" https://nodejs.org/dist/latest-v20.x/node-${{ needs.Setup.outputs.v20 }}-x64.msi
-          curl -sSLOw "node-${{ needs.Setup.outputs.v22 }}-x64.msi\n" https://nodejs.org/dist/latest-v22.x/node-${{ needs.Setup.outputs.v22 }}-x64.msi
-          curl -sSLOw "node-${{ needs.Setup.outputs.v24 }}-x64.msi\n" https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-x64.msi
-          curl -sSLOw "node-${{ needs.Setup.outputs.v18 }}-win-x64.zip\n" https://nodejs.org/dist/latest-v18.x/node-${{ needs.Setup.outputs.v18 }}-win-x64.zip
-          curl -sSLOw "node-${{ needs.Setup.outputs.v20 }}-win-x64.zip\n" https://nodejs.org/dist/latest-v20.x/node-${{ needs.Setup.outputs.v20 }}-win-x64.zip
-          curl -sSLOw "node-${{ needs.Setup.outputs.v22 }}-win-x64.zip\n" https://nodejs.org/dist/latest-v22.x/node-${{ needs.Setup.outputs.v22 }}-win-x64.zip
-          curl -sSLOw "node-${{ needs.Setup.outputs.v24 }}-win-x64.zip\n" https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-win-x64.zip
-          curl -sSLOw "node-${{ needs.Setup.outputs.v18 }}-linux-x64.tar.xz\n" https://nodejs.org/dist/latest-v18.x/node-${{ needs.Setup.outputs.v18 }}-linux-x64.tar.xz
-          curl -sSLOw "node-${{ needs.Setup.outputs.v20 }}-linux-x64.tar.xz\n" https://nodejs.org/dist/latest-v20.x/node-${{ needs.Setup.outputs.v20 }}-linux-x64.tar.xz
-          curl -sSLOw "node-${{ needs.Setup.outputs.v22 }}-linux-x64.tar.xz\n" https://nodejs.org/dist/latest-v22.x/node-${{ needs.Setup.outputs.v22 }}-linux-x64.tar.xz
-          curl -sSLOw "node-${{ needs.Setup.outputs.v24 }}-linux-x64.tar.xz\n" https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-linux-x64.tar.xz
+          for VERSION in ${{ needs.Setup.outputs.v18 }} ${{ needs.Setup.outputs.v20 }} ${{ needs.Setup.outputs.v22 }} ${{ needs.Setup.outputs.v24 }}; do
+            echo -e "\nDownloading Node.js $VERSION\n"
+            curl -sSLOw "node-${VERSION}-x64.msi\n" https://nodejs.org/dist/latest-v${VERSION}.x/node-${VERSION}-x64.msi
+            curl -sSLOw "node-${VERSION}-win-x64.zip\n" https://nodejs.org/dist/latest-v${VERSION}.x/node-${VERSION}-win-x64.zip
+            curl -sSLOw "node-${VERSION}-linux-x64.tar.xz\n" https://nodejs.org/dist/latest-v${VERSION}.x/node-${VERSION}-linux-x64.tar.xz
+          done
+          
           sha256sum -b * | tee node_runtimes.sha
 
-      - name: Download Yarn Installers
+      - name: Download Yarn
         run: |
-          echo -e "\nDownloading installers\n"
+          echo -e "\nDownloading yarnpkgs\n"
           mkdir -p ISO/yarnpkg
           cd ISO/yarnpkg
-          
-          echo -e "\nListing releases:"
-          gh release list --repo yarnpkg/berry
-
-          for RELEASE_TAG in v4.12.0 v4.10.2 v4.5.3 v4.1.1 v4.0.2; do
-            echo -e "\nDownloading Yarn $RELEASE_TAG\n"
-            gh release download $RELEASE_TAG \
-              --repo yarnpkg/berry \
-              --pattern "*"
+          for RELEASE_TAG in 4.12.0 4.10.2 4.5.3; do
+            for FILE in js js.sign js.pem; do
+              curl -sSLw "Downloaded Yarn $RELEASE_TAG $FILE\n" \
+                https://repo.yarnpkg.com/$RELEASE_TAG/packages/yarnpkg-cli/bin/yarn.$FILE \
+                -o yarn-${RELEASE_TAG}.$FILE
+            done
           done
+          echo -e "\nHashing Files:"
           sha256sum -b * | tee yarnpkg.sha
 
       - name: Copy Markdowns to ISO
