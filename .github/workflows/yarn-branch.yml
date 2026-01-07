@@ -241,9 +241,12 @@ jobs:
           for VERSION in ${{ needs.Setup.outputs.v18 }} ${{ needs.Setup.outputs.v20 }} ${{ needs.Setup.outputs.v22 }} ${{ needs.Setup.outputs.v24 }}; do
             echo -e "\nDownloading Node.js $VERSION"
             for FILE in x64.msi win-x64.zip linux-x64.tar.xz; do
-              curl -sSLOw "Downloaded node-${VERSION}-${FILE}\n" https://nodejs.org/dist/latest-v${VERSION}.x/node-${VERSION}-${FILE}
+              curl -sSLw "Downloaded node-${VERSION}-${FILE} (%{http_code}: %{size_download}B)\n"\
+              https://nodejs.org/dist/latest-v${VERSION}.x/node-${VERSION}-${FILE} \
+                -o node-${VERSION}-${FILE}
             done
           done
+          echo -e "\nListing downloaded files:\n$(ls -1Ssh)"
           echo -e "\nHashing Files:"
           sha256sum -b * | tee node_runtimes.sha
 
@@ -254,7 +257,7 @@ jobs:
           cd ISO/yarnpkg
           for RELEASE_TAG in 4.12.0 4.10.2 4.5.3; do
             for FILE in js js.sign js.pem; do
-              curl -sSLw "Downloaded yarn-$RELEASE_TAG.$FILE\n" \
+              curl -sSLw "Downloaded yarn-$RELEASE_TAG.$FILE (%{http_code}: %{size_download}B)\n" \
                 https://repo.yarnpkg.com/$RELEASE_TAG/packages/yarnpkg-cli/bin/yarn.$FILE \
                 -o yarn-${RELEASE_TAG}.$FILE
             done
