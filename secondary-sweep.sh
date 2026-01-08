@@ -77,10 +77,10 @@ sweep_one() {
 
   echo "GET $local_url  ->  $dest"
 
-  if ! curl -fSL --retry 3 --retry-delay 1 -o "$tmp" "$local_url"; then
+  if ! curl -fsSL --retry 3 --retry-delay 1 -o "$tmp" "$local_url"; then
     if [ -n "$tarball" ]; then
       echo "FALLBACK GET $tarball  ->  $dest"
-      curl -fSL --retry 3 --retry-delay 1 -o "$tmp" "$tarball" || {
+      curl -fsSL --retry 3 --retry-delay 1 -o "$tmp" "$tarball" || {
         echo "ERROR: failed to download tarball for $name@$version" >&2
         rm -f "$tmp"
         return

@@ -9,10 +9,15 @@ node_modules.tar
 coverage/
 docs/
 .yarn/cache
+**/yarnpkg/
+/verdaccio/storage/
 
 # Ignore Files
 *.tgz
+*.tar.gz
 *.gz
 *.zip
 *.bundle
+*.log
+*.sha
 *.log

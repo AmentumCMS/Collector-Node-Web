@@ -90,7 +90,7 @@ jobs:
           sudo corepack enable
           echo -e "\nNode Version: $(node -v)"
           echo "Yarn version: $(yarn -v)"
-          
+
       - name: Set up Git
         run: |
           git config user.name "$(git log -n 1 --pretty=format:%an)"
@@ -100,22 +100,24 @@ jobs:
         run: |
           export XDG_DATA_HOME=$PWD
 
-          echo -e "\nRunning Verdaccio"
+          echo -e "\nStarting Verdaccio"
           yarn dlx verdaccio >\
             verdaccio/verdaccio.log 2>\
             verdaccio/verdaccio-err.log &
           
           # Wait until Verdaccio is ready (adjust if needed)
+          echo -n "Waiting for Verdaccio to be ready: "
           for i in {1..30}; do
-            if curl -sS http://localhost:4873/ >/dev/null; then break; fi
+            if curl -sw "$i " http://localhost:4873/ -o /dev/null; then break; fi
             sleep 1
           done
-          
+
           echo -e "\nTailing Verdaccio startup logs (last 50 lines)"
           tail -n 50 verdaccio/verdaccio.log || true
           echo -e "\nVerdaccio errors (if any)"
           tail -n +1 verdaccio/verdaccio-err.log || true
-          
+          echo -e "\nVerdaccio is ready. Proceeding with Yarn install."
+
           # Create a deterministic .yarnrc.yml for Berry
           cat >> .yarnrc.yml <<'YRC'
           npmRegistryServer: "http://localhost:4873"
@@ -126,36 +128,37 @@ jobs:
           strict-ssl=false
           NPMRC
 
-          # Verify Berry sees the registry we set
+          echo -en "\nVerify Berry sees the registry we set: "
           yarn config get npmRegistryServer
-          echo -e "\nWiping caches fully (Berry)"
 
           echo -e "\nRunning Yarn"
           yarn install --refresh-lockfile
+          corepack pack -o .yarn/yarn-pack.tar.gz
           
-          # Fix for this one singular package.
-          curl -L "http://localhost:4873/process/-/process-0.11.10.tgz" -o /tmp/process-0.11.10.tgz
-          npm pack validator@0.1.1
+          echo -e "\nFixes for individual packages."
+          curl -sSLw "Redownloaded process-0.11.10.tgz" "http://localhost:4873/process/-/process-0.11.10.tgz" \
+            -o /tmp/process-0.11.10.tgz
 
+          echo -e "\nPacking validator@0.1.1"
+          npm pack validator@0.1.1
 
       - name: Second sweep from yarn.lock (prime Verdaccio tarball cache)
         run: bash secondary-sweep.sh
 
-
-      - name: Listings
+      - name: Module Listings
         run: |
-          echo -e "\nListing verdaccio/*"
-          ls -1Ssh verdaccio/*
-          #echo -e "\nListing Consumption"
-          #du -chd0 node_modules verdaccio/*
-          
+          echo -e "\nListing verdaccio"
+          tree -d verdaccio
+          echo -e "\nListing Consumption"
+          du -chd0 node_modules verdaccio/*
+
       - name: Generate app SBOM (node_modules)
         uses: anchore/sbom-action@v0
         with:
           format: cyclonedx-json
           output-file: app-sbom.cdx.json
           upload-artifact: true
-      
+
       - name: Scan app SBOM
         uses: anchore/scan-action@v6
         with:
@@ -163,8 +166,6 @@ jobs:
           severity-cutoff: high
           output-format: table
           output-file: grype-report.txt
-          upload-artifact: true
-          scan-type: npm
 
       - name: TARchive verdaccio storage directory
         run: |
@@ -187,6 +188,11 @@ jobs:
         run: |
           sha256sum -b ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz | tee \
             ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz.sha
+
+      - name: Artifact Listings
+        run: |
+          echo -e "\nListing files\n$(ls -1Ssh)"
+          echo -e "\nListing Consumption:\n$(du -chd0)"
 
       - name: Upload verdaccio artifacts
         uses: actions/upload-artifact@v4
@@ -223,7 +229,7 @@ jobs:
       - name: Install mkisofs
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y mkisofs isomd5sum wget
+          sudo apt-get install -y mkisofs isomd5sum wget tree
 
       - name: Download Artifacts
         uses: actions/download-artifact@v5
@@ -233,22 +239,36 @@ jobs:
 
       - name: Download Node Installers
         run: |
-          echo -e "\nDownloading installers\n"
+          echo -e "\nDownloading installers"
           mkdir -p ISO/runtimes
           cd ISO/runtimes
-          wget -nv https://nodejs.org/dist/latest-v18.x/node-${{ needs.Setup.outputs.v18 }}-x64.msi
-          wget -nv https://nodejs.org/dist/latest-v20.x/node-${{ needs.Setup.outputs.v20 }}-x64.msi
-          wget -nv https://nodejs.org/dist/latest-v22.x/node-${{ needs.Setup.outputs.v22 }}-x64.msi
-          wget -nv https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-x64.msi
-          wget -nv https://nodejs.org/dist/latest-v18.x/node-${{ needs.Setup.outputs.v18 }}-win-x64.zip
-          wget -nv https://nodejs.org/dist/latest-v20.x/node-${{ needs.Setup.outputs.v20 }}-win-x64.zip
-          wget -nv https://nodejs.org/dist/latest-v22.x/node-${{ needs.Setup.outputs.v22 }}-win-x64.zip
-          wget -nv https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-win-x64.zip
-          wget -nv https://nodejs.org/dist/latest-v18.x/node-${{ needs.Setup.outputs.v18 }}-linux-x64.tar.xz
-          wget -nv https://nodejs.org/dist/latest-v20.x/node-${{ needs.Setup.outputs.v20 }}-linux-x64.tar.xz
-          wget -nv https://nodejs.org/dist/latest-v22.x/node-${{ needs.Setup.outputs.v22 }}-linux-x64.tar.xz
-          wget -nv https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-linux-x64.tar.xz
+          for VERSION in ${{ needs.Setup.outputs.v18 }} ${{ needs.Setup.outputs.v20 }} ${{ needs.Setup.outputs.v22 }} ${{ needs.Setup.outputs.v24 }}; do
+            echo -e "\nDownloading Node.js $VERSION"
+            for FILE in x64.msi win-x64.zip linux-x64.tar.xz; do
+              curl -sSLw "Downloaded node-${VERSION}-${FILE} (%{http_code}: %{size_download}B)\n"\
+              https://nodejs.org/dist/latest-${VERSION%%.*}.x/node-${VERSION}-${FILE} \
+                -o node-${VERSION}-${FILE}
+            done
+          done
+          echo -e "\nListing downloaded files:\n$(ls -1Ssh)"
+          echo -e "\nHashing Files:"
           sha256sum -b * | tee node_runtimes.sha
+
+      - name: Download Yarn
+        run: |
+          echo -e "\nDownloading yarnpkgs:"
+          mkdir -p ISO/yarnpkg
+          cd ISO/yarnpkg
+          for RELEASE_TAG in 4.12.0 4.10.2 4.5.3; do
+            for FILE in js js.sign js.pem; do
+              curl -sSLw "Downloaded yarn-$RELEASE_TAG.$FILE (%{http_code}: %{size_download}B)\n" \
+                https://repo.yarnpkg.com/$RELEASE_TAG/packages/yarnpkg-cli/bin/yarn.$FILE \
+                -o yarn-${RELEASE_TAG}.$FILE
+            done
+          done
+          echo -e "\nListing downloaded files:\n$(ls -1Ssh)"
+          echo -e "\nHashing Files:"
+          sha256sum -b * | tee yarnpkg.sha
 
       - name: Copy Markdowns to ISO
         run: cp -v *.md ISO/
