@@ -116,7 +116,7 @@ jobs:
           tail -n 50 verdaccio/verdaccio.log || true
           echo -e "\nVerdaccio errors (if any)"
           tail -n +1 verdaccio/verdaccio-err.log || true
-          echo -e "\nVerdaccio is ready. Proceeding with Yarn install.\n"
+          echo -e "\nVerdaccio is ready. Proceeding with Yarn install."
 
           # Create a deterministic .yarnrc.yml for Berry
           cat >> .yarnrc.yml <<'YRC'
@@ -136,7 +136,7 @@ jobs:
           corepack pack -o .yarn/yarn-pack.tar.gz
           
           echo -e "\nFixes for individual packages."
-          curl -sSLw "process-0.11.10.tgz" "http://localhost:4873/process/-/process-0.11.10.tgz" \
+          curl -sSLw "Redownloaded process-0.11.10.tgz" "http://localhost:4873/process/-/process-0.11.10.tgz" \
             -o /tmp/process-0.11.10.tgz
 
           echo -e "\nPacking validator@0.1.1"
@@ -145,13 +145,12 @@ jobs:
       - name: Second sweep from yarn.lock (prime Verdaccio tarball cache)
         run: bash secondary-sweep.sh
 
-      - name: Listings
+      - name: Module Listings
         run: |
           echo -e "\nListing verdaccio"
           tree -d verdaccio
           echo -e "\nListing Consumption"
           du -chd0 node_modules verdaccio/*
-          echo
 
       - name: Generate app SBOM (node_modules)
         uses: anchore/sbom-action@v0
@@ -189,6 +188,11 @@ jobs:
         run: |
           sha256sum -b ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz | tee \
             ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz.sha
+
+      - name: Artifact Listings
+        run: |
+          echo -e "\nListing files\n$(ls -1Ssh)"
+          echo -e "\nListing Consumption:\n$(du -chd0)"
 
       - name: Upload verdaccio artifacts
         uses: actions/upload-artifact@v4
