@@ -10,7 +10,7 @@ on:
 
 jobs:
   Setup:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     outputs:
       Date: ${{ steps.date.outputs.date }}
       v18:  ${{ steps.v.outputs.v18 }}
@@ -64,7 +64,7 @@ jobs:
           cat $GITHUB_OUTPUT
 
   Collect:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: [Setup]
 
     permissions:
@@ -73,13 +73,13 @@ jobs:
 
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: true
           lfs: true
 
       - name: Use Node.js ${{ needs.Setup.outputs.v18 }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ needs.Setup.outputs.v18 }}
 
@@ -103,31 +103,114 @@ jobs:
         run: |
           export XDG_DATA_HOME=$PWD
 
-          echo -e "\nRunning Verdaccio"
+          echo -e "\nStarting Verdaccio"
           yarn dlx verdaccio >\
             verdaccio/verdaccio.log 2>\
             verdaccio/verdaccio-err.log &
-          tail -f verdaccio/verdaccio.log & P=$! && sleep 20 && kill -9 $P
-          echo -e "\nTailing errors\n" &&\
-          tail verdaccio/verdaccio-err.log
+          
+          # Wait until Verdaccio is ready (adjust if needed)
+          echo -n "Waiting for Verdaccio to be ready: "
+          for i in {1..30}; do
+            if curl -sw "$i " http://localhost:4873/ -o /dev/null; then break; fi
+            sleep 1
+          done
 
-          echo -e "\nSetting up registries"
-          npm set registry http://localhost:4873/
-          yarn config set npmRegistryServer http://localhost:4873/
+          echo -e "\nTailing Verdaccio startup logs (last 50 lines)"
+          tail -n 50 verdaccio/verdaccio.log || true
+          echo -e "\nVerdaccio errors (if any)"
+          tail -n +1 verdaccio/verdaccio-err.log || true
+          echo -e "\nVerdaccio is ready. Proceeding with Yarn install."
 
-          echo -e "\nChecking Connectivity\n"
-          curl http://localhost:4873 -o test.html
-          sleep 1
+          # Create a deterministic .yarnrc.yml for Berry
+          cat >> .yarnrc.yml <<'YRC'
+          npmRegistryServer: "http://localhost:4873"
+          YRC
+
+          cat >> .npmrc <<'NPMRC'
+          registry=http://localhost:4873
+          strict-ssl=false
+          NPMRC
+
+          echo -en "\nVerify Berry sees the registry we set: "
+          yarn config get npmRegistryServer
 
           echo -e "\nRunning Yarn"
-          yarn install
+          yarn install --refresh-lockfile
+          corepack pack -o .yarn/yarn-pack.tar.gz
+          
+          echo -e "\nFixes for individual packages."
+          curl -sSLw "Redownloaded process-0.11.10.tgz" "http://localhost:4873/process/-/process-0.11.10.tgz" \
+            -o /tmp/process-0.11.10.tgz
+
+          echo -e "\nPacking validator@0.1.1"
+          npm pack validator@0.1.1
+
+      - name: Second sweep from yarn.lock (prime Verdaccio tarball cache)
+        run: bash secondary-sweep.sh
 
       - name: Listings
         run: |
-          echo -e "\nListing verdaccio/*"
-          ls -1Ssh verdaccio/*
+          echo -e "\nListing verdaccio"
+          tree -d verdaccio
           echo -e "\nListing Consumption"
           du -chd0 node_modules verdaccio/*
+
+      - name: Generate app SBOM (node_modules)
+        uses: anchore/sbom-action@v0
+        with:
+          format: cyclonedx-json
+          output-file: app-sbom.cdx.json
+          upload-artifact: true
+
+      - name: Scan app SBOM
+        uses: anchore/scan-action@v6
+        with:
+          sbom: app-sbom.cdx.json
+          severity-cutoff: high
+          output-format: table
+          output-file: grype-report.txt
+
+      - name: Add vulnerability summary to job summary
+        if: always()
+        run: |
+          {
+            echo "# Vulnerability Summary"
+            echo ""
+      
+            if [ -f grype-report.txt ]; then
+              echo "## Counts"
+              awk '
+              {
+                sev=tolower($6)
+                if (sev=="critical"||sev=="high"||sev=="medium"||sev=="low") {
+                  counts[sev]++
+                }
+              }
+              END {
+                print "- Critical:", counts["critical"]+0
+                print "- High:", counts["high"]+0
+                print "- Medium:", counts["medium"]+0
+                print "- Low:", counts["low"]+0
+              }
+              ' grype-report.txt
+      
+              echo ""
+              echo "## Top Findings"
+              echo '```'
+              awk 'NR>1 && ($6=="Critical"||$6=="High"||$6=="Medium"||$6=="Low")' grype-report.txt | head -n 50
+              echo '```'
+            else
+              echo "grype-report.txt not found"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload SBOM scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ vars.COLLECTOR }}-sbom-scan-${{ needs.Setup.outputs.Date }}
+          path: grype-report.txt
+          if-no-files-found: error
 
       - name: TARchive verdaccio storage directory
         run: |
@@ -137,8 +220,8 @@ jobs:
 
       - name: TARchive verdaccio storage directory SHA HASH
         run: |
-          sha256sum -b verdaccio-${{ needs.Setup.outputs.Date }}.tgz | tee \
-            verdaccio-${{ needs.Setup.outputs.Date }}.tgz.sha
+          sha256sum -b ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz | tee \
+            ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz.sha
 
       - name: TARchive .yarn directory
         run: |
@@ -151,28 +234,33 @@ jobs:
           sha256sum -b ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz | tee \
             ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz.sha
 
+      - name: Artifact Listings
+        run: |
+          echo -e "\nListing files\n$(ls -1Ssh)"
+          echo -e "\nListing Consumption:\n$(du -chd0)"
+
       - name: Upload verdaccio artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz
           path: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz*
           if-no-files-found: error
 
       - name: Upload yarn-cache artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz
           path: ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz*
           if-no-files-found: error
 
       - name: Upload Logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
-          name: Logs-${{ needs.Setup.outputs.Date }}.log
+          name: ${{ vars.COLLECTOR }}-verdaccio-logs-${{ needs.Setup.outputs.Date }}.log
           path: "verdaccio/*.log"
 
   MakeISO:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: [Setup, Collect]
     env:
       GH_TOKEN: ${{ github.token }}
@@ -181,41 +269,60 @@ jobs:
       pull-requests: read
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install mkisofs
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y mkisofs isomd5sum wget
+          sudo apt-get install -y mkisofs isomd5sum wget tree
 
       - name: Download Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           merge-multiple: true
           path: ISO
 
       - name: Download Node Installers
         run: |
-          echo -e "\nDownloading installers\n"
+          echo -e "\nDownloading installers"
           mkdir -p ISO/runtimes
           cd ISO/runtimes
-          wget -nv https://nodejs.org/dist/latest-v18.x/node-${{ needs.Setup.outputs.v18 }}-x64.msi
-          wget -nv https://nodejs.org/dist/latest-v20.x/node-${{ needs.Setup.outputs.v20 }}-x64.msi
-          wget -nv https://nodejs.org/dist/latest-v22.x/node-${{ needs.Setup.outputs.v22 }}-x64.msi
-          wget -nv https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-x64.msi
-          wget -nv https://nodejs.org/dist/latest-v18.x/node-${{ needs.Setup.outputs.v18 }}-win-x64.zip
-          wget -nv https://nodejs.org/dist/latest-v20.x/node-${{ needs.Setup.outputs.v20 }}-win-x64.zip
-          wget -nv https://nodejs.org/dist/latest-v22.x/node-${{ needs.Setup.outputs.v22 }}-win-x64.zip
-          wget -nv https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-win-x64.zip
-          wget -nv https://nodejs.org/dist/latest-v18.x/node-${{ needs.Setup.outputs.v18 }}-linux-x64.tar.xz
-          wget -nv https://nodejs.org/dist/latest-v20.x/node-${{ needs.Setup.outputs.v20 }}-linux-x64.tar.xz
-          wget -nv https://nodejs.org/dist/latest-v22.x/node-${{ needs.Setup.outputs.v22 }}-linux-x64.tar.xz
-          wget -nv https://nodejs.org/dist/latest-v24.x/node-${{ needs.Setup.outputs.v24 }}-linux-x64.tar.xz
+          for VERSION in ${{ needs.Setup.outputs.v18 }} ${{ needs.Setup.outputs.v20 }} ${{ needs.Setup.outputs.v22 }} ${{ needs.Setup.outputs.v24 }}; do
+            echo -e "\nDownloading Node.js $VERSION"
+            for FILE in x64.msi win-x64.zip linux-x64.tar.xz; do
+              curl -sSLw "Downloaded node-${VERSION}-${FILE} (%{http_code}: %{size_download}B)\n"\
+              https://nodejs.org/dist/latest-${VERSION%%.*}.x/node-${VERSION}-${FILE} \
+                -o node-${VERSION}-${FILE}
+            done
+          done
+          echo -e "\nListing downloaded files:\n$(ls -1Ssh)"
+          echo -e "\nHashing Files:"
           sha256sum -b * | tee node_runtimes.sha
+
+      - name: Download Yarn
+        run: |
+          echo -e "\nDownloading yarnpkgs:"
+          mkdir -p ISO/yarnpkg
+          cd ISO/yarnpkg
+          for RELEASE_TAG in 4.12.0 4.10.2 4.5.3; do
+            for FILE in js js.sign js.pem; do
+              curl -sSLw "Downloaded yarn-$RELEASE_TAG.$FILE (%{http_code}: %{size_download}B)\n" \
+                https://repo.yarnpkg.com/$RELEASE_TAG/packages/yarnpkg-cli/bin/yarn.$FILE \
+                -o yarn-${RELEASE_TAG}.$FILE
+            done
+          done
+          echo -e "\nListing downloaded files:\n$(ls -1Ssh)"
+          echo -e "\nHashing Files:"
+          sha256sum -b * | tee yarnpkg.sha
 
       - name: Copy Markdowns to ISO
         run: cp -v *.md ISO/
-
+        
+      - name: Copy package manifests to ISO
+        run: |
+          mkdir -p ISO/app
+          cp -v package.json ISO/
+          
       - name: Show Artifacts
         run: |
           echo -e "Directory Listing:\n$(ls -1Ssh ISO)"
@@ -250,33 +357,33 @@ jobs:
         run: ls -1Ssh *.iso*
 
       - name: Upload ISO
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
           path: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso*
           if-no-files-found: error
 
       - name: Upload ISO SHA
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
           path: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
           if-no-files-found: error
 
   VirusScan:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: [Setup, MakeISO]
     permissions:
       contents: write
       pull-requests: read
     steps:
       - name: Download ISO artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
 
       - name: Download TGZ artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           merge-multiple: true
           pattern: "*-${{ needs.Setup.outputs.Date }}.tgz"
@@ -306,16 +413,20 @@ jobs:
           echo "For detailed scan results, check the job logs and step summary." >> ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
 
           echo -e "\nGenerated Virus Scan Report:\n$(cat ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt)"
+
+          echo -e "\nScan Statistics:\n$(cat $GITHUB_STEP_SUMMARY)" \
+          | tee ${{ vars.COLLECTOR }}-virus-scan-statistics-${{ needs.Setup.outputs.Date }}.txt
+
       - name: Upload virus scan report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
-          name: ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
-          path: "*virus-scan-report-*.txt"
+          name: ${{ vars.COLLECTOR }}-virus-scan-${{ needs.Setup.outputs.Date }}.txt
+          path: "*virus*.txt"
           if-no-files-found: warn
 
   OfflineTest:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: [Setup, MakeISO]
     permissions:
       contents: write
@@ -330,10 +441,10 @@ jobs:
           sudo apt-get install -y isomd5sum
 
       - name: Check out repository code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download ISO and hash
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: "${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso*"
           merge-multiple: true
@@ -370,7 +481,7 @@ jobs:
           yarn run
 
   Release:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: [Setup, VirusScan, OfflineTest]
     permissions:
       contents: write
@@ -378,10 +489,10 @@ jobs:
 
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           merge-multiple: true
 
@@ -406,44 +517,9 @@ jobs:
 
       - name: Create Release
         id: create_release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: ${{ vars.COLLECTOR }} ${{ needs.Setup.outputs.Date }}
           tag_name: ${{ needs.Setup.outputs.Date }}
           make_latest: true
           files: ${{ vars.COLLECTOR }}-*.*
-
-  Sharepoint:
-    runs-on: ubuntu-24.04
-    needs: [Setup, VirusScan, OfflineTest]
-    permissions:
-      contents: write
-      pull-requests: read
-    steps:
-      - name: Download Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          merge-multiple: true
-
-      - name: Show Artifacts
-        run: |
-          echo -e "Directory Listing:\n$(ls -1Ssh ${{ vars.COLLECTOR }}-*.*)"
-          echo -e "\nDirectory Size:\n$(du -chd0 ${{ vars.COLLECTOR }}-*.*)"
-          echo -e "\nISO and TGZ files:"
-          ls -1Ssh *tgz* *iso* || echo "No ISO/TGZ files found"
-          echo ""
-          echo "Virus scan report:"
-          ls -1Ssh *virus-scan-report* || echo "No virus scan report found"
-
-      - name: Send Files to Sharepoint
-        uses: amentumservices/sharepoint-file-upload-action@main
-        with:
-          file_path: "${{ vars.COLLECTOR }}-*.*"
-          host_name: "${{ secrets.SHAREPOINT_HOST }}"
-          site_name: "${{ secrets.SHAREPOINT_SITE }}"
-          upload_path: "${{ secrets.SHAREPOINT_BASEPATH }}/${{ vars.COLLECTOR }}/${{ needs.Setup.outputs.Date }}"
-          tenant_id: ${{ secrets.SHAREPOINT_TENANT_ID }}
-          client_id: ${{ secrets.SHAREPOINT_APP_ID }}
-          client_secret: ${{ secrets.SHAREPOINT_APP_SECRET }}
-          login_endpoint: "login.microsoftonline.us"
-          graph_endpoint: "graph.microsoft.us"
