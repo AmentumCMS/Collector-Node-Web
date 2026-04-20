@@ -8,7 +8,7 @@ on:
 
 jobs:
   Setup:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     outputs:
       Date: ${{ steps.date.outputs.date }}
       v18:  ${{ steps.v.outputs.v18 }}
@@ -62,7 +62,7 @@ jobs:
           cat $GITHUB_OUTPUT
 
   Collect:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: [Setup]
 
     permissions:
@@ -71,13 +71,13 @@ jobs:
 
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: true
           lfs: true
 
       - name: Use Node.js ${{ needs.Setup.outputs.v18 }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ needs.Setup.outputs.v18 }}
 
@@ -237,27 +237,27 @@ jobs:
           echo -e "\nListing Consumption:\n$(du -chd0)"
 
       - name: Upload verdaccio artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz
           path: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz*
           if-no-files-found: error
 
       - name: Upload yarn-cache artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz
           path: ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz*
           if-no-files-found: error
 
       - name: Upload Logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ vars.COLLECTOR }}-verdaccio-logs-${{ needs.Setup.outputs.Date }}.log
           path: "verdaccio/*.log"
 
   MakeISO:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: [Setup, Collect]
     env:
       GH_TOKEN: ${{ github.token }}
@@ -266,7 +266,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install mkisofs
         run: |
@@ -274,7 +274,7 @@ jobs:
           sudo apt-get install -y mkisofs isomd5sum wget tree
 
       - name: Download Artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           merge-multiple: true
           path: ISO
@@ -354,33 +354,33 @@ jobs:
         run: ls -1Ssh *.iso*
 
       - name: Upload ISO
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
           path: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso*
           if-no-files-found: error
 
       - name: Upload ISO SHA
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
           path: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
           if-no-files-found: error
 
   VirusScan:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: [Setup, MakeISO]
     permissions:
       contents: write
       pull-requests: read
     steps:
       - name: Download ISO artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
 
       - name: Download TGZ artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           merge-multiple: true
           pattern: "*-${{ needs.Setup.outputs.Date }}.tgz"
@@ -416,14 +416,14 @@ jobs:
 
       - name: Upload virus scan report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ vars.COLLECTOR }}-virus-scan-${{ needs.Setup.outputs.Date }}.txt
           path: "*virus*.txt"
           if-no-files-found: warn
 
   OfflineTest:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: [Setup, MakeISO]
     permissions:
       contents: write
@@ -438,10 +438,10 @@ jobs:
           sudo apt-get install -y isomd5sum
 
       - name: Check out repository code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download ISO and hash
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           pattern: "${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso*"
           merge-multiple: true
@@ -478,7 +478,7 @@ jobs:
           yarn run
 
   Release:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: [Setup, VirusScan, OfflineTest]
     permissions:
       contents: write
@@ -486,10 +486,10 @@ jobs:
 
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download Artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           merge-multiple: true
 
@@ -504,14 +504,14 @@ jobs:
           ls -1Ssh *virus-scan-report* || echo "No virus scan report found"
 
   Sharepoint:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: [Setup, VirusScan, OfflineTest]
     permissions:
       contents: write
       pull-requests: read
     steps:
       - name: Download Artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           merge-multiple: true
 
