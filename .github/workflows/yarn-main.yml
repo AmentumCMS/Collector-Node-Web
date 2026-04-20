@@ -316,7 +316,12 @@ jobs:
 
       - name: Copy Markdowns to ISO
         run: cp -v *.md ISO/
-
+        
+      - name: Copy package manifests to ISO
+        run: |
+          mkdir -p ISO/app
+          cp -v package.json ISO/
+          
       - name: Show Artifacts
         run: |
           echo -e "Directory Listing:\n$(ls -1Ssh ISO)"
