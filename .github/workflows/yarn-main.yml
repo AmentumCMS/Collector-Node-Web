@@ -169,6 +169,37 @@ jobs:
           output-format: table
           output-file: grype-report.txt
 
+      - name: Add CVE summary to job summary
+        if: always()
+        run: |
+          {
+            echo "# Vulnerability Summary"
+            echo ""
+
+            if [ -f grype-report.txt ]; then
+              echo "## High / Critical Findings"
+              echo ""
+
+              # Extract only HIGH and CRITICAL lines (skip header)
+              grep -E "CRITICAL|HIGH" grype-report.txt | head -n 100 || echo "No HIGH/CRITICAL vulnerabilities found."
+
+              echo ""
+              echo "## Counts"
+              echo "- CRITICAL: $(grep -c CRITICAL grype-report.txt || echo 0)"
+              echo "- HIGH: $(grep -c HIGH grype-report.txt || echo 0)"
+            else
+              echo "grype-report.txt not found"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload SBOM scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ vars.COLLECTOR }}-sbom-scan-${{ needs.Setup.outputs.Date }}
+          path: grype-report.txt
+          if-no-files-found: error
+
       - name: TARchive verdaccio storage directory
         run: |
           tar -cvI pigz -f ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz \
