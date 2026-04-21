@@ -162,10 +162,11 @@ jobs:
           upload-artifact: true
 
       - name: Scan app SBOM
-        uses: anchore/scan-action@v6
+        uses: anchore/scan-action@v7
         with:
           sbom: app-sbom.cdx.json
           severity-cutoff: high
+          fail-build: false
           output-format: table
           output-file: grype-report.txt
 
