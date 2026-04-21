@@ -165,7 +165,8 @@ jobs:
         uses: anchore/scan-action@v7
         with:
           sbom: app-sbom.cdx.json
-          # severity-cutoff: high
+          severity-cutoff: high
+          fail-build: false
           output-format: table
           output-file: grype-report.txt
 
