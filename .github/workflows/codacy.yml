@@ -3,59 +3,89 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 
-# This workflow checks out code, performs a Codacy security scan
-# and integrates the results with the
-# GitHub Advanced Security code scanning feature.  For more information on
-# the Codacy security scan action usage and parameters, see
-# https://github.com/codacy/codacy-analysis-cli-action.
-# For more information on Codacy Analysis CLI in general, see
-# https://github.com/codacy/codacy-analysis-cli.
-
 name: Codacy Security Scan
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    # The branches below must be a subset of the branches above
-    branches: [ "main" ]
+    branches: ["main"]
   schedule:
-    - cron: '22 2 * * 5'
+    - cron: "22 2 * * 5"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   codacy-security-scan:
-    permissions:
-      contents: read # for actions/checkout to fetch code
-      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
-      actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
     name: Codacy Security Scan
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
     steps:
-      # Checkout the repository to the GitHub Actions runner
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Execute Codacy Analysis CLI and generate a SARIF output with the security issues identified during the analysis
       - name: Run Codacy Analysis CLI
-        uses: codacy/codacy-analysis-cli-action@562ee3e92b8e92df8b67e0a5ff8aa8e261919c08
+        uses: codacy/codacy-analysis-cli-action@v4.4.7
         with:
-          # Check https://github.com/codacy/codacy-analysis-cli#project-token to get your project token from your Codacy repository
-          # You can also omit the token and run the tools that support default configurations
           project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
           verbose: true
           output: results.sarif
           format: sarif
-          # Adjust severity of non-security issues
           gh-code-scanning-compat: true
-          # Force 0 exit code to allow SARIF file generation
-          # This will handover control about PR rejection to the GitHub side
           max-allowed-issues: 2147483647
 
-      # Upload the SARIF file generated in the previous step
-      - name: Upload SARIF results file
-        uses: github/codeql-action/upload-sarif@v3
+      # GitHub rejects a SARIF file that contains multiple runs with the same
+      # tool/category. Codacy can emit multiple runs, so split them and assign
+      # stable per-run categories.
+      - name: Split Codacy SARIF runs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p sarif-runs
+
+          run_count="$(jq '.runs | length' results.sarif)"
+          echo "Codacy SARIF run count: ${run_count}"
+
+          for i in $(seq 0 $((run_count - 1))); do
+            jq --argjson i "$i" '
+              . as $root
+              | {
+                  version: $root.version,
+                  "$schema": $root["$schema"],
+                  runs: [
+                    (
+                      $root.runs[$i]
+                      | .automationDetails.id = (
+                          "codacy-" +
+                          (
+                            .tool.driver.name
+                            // .tool.driver.semanticVersion
+                            // "run"
+                            | tostring
+                            | ascii_downcase
+                            | gsub("[^a-z0-9._-]+"; "-")
+                          ) +
+                          "-" +
+                          ($i | tostring)
+                        )
+                    )
+                  ]
+                }
+            ' results.sarif > "sarif-runs/codacy-${i}.sarif"
+          done
+
+          ls -la sarif-runs
+
+      - name: Upload SARIF results
+        uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: results.sarif
+          sarif_file: sarif-runs
+          category: codacy
