@@ -206,7 +206,7 @@ jobs:
 
       - name: Upload SBOM scan report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ vars.COLLECTOR }}-sbom-scan-${{ needs.Setup.outputs.Date }}
           path: grype-report.txt
@@ -240,21 +240,21 @@ jobs:
           echo -e "\nListing Consumption:\n$(du -chd0)"
 
       - name: Upload verdaccio artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz
           path: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz*
           if-no-files-found: error
 
       - name: Upload yarn-cache artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz
           path: ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz*
           if-no-files-found: error
 
       - name: Upload Logs
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ vars.COLLECTOR }}-verdaccio-logs-${{ needs.Setup.outputs.Date }}.log
           path: "verdaccio/*.log"
@@ -357,14 +357,14 @@ jobs:
         run: ls -1Ssh *.iso*
 
       - name: Upload ISO
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
           path: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso*
           if-no-files-found: error
 
       - name: Upload ISO SHA
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
           path: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
@@ -419,7 +419,7 @@ jobs:
 
       - name: Upload virus scan report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ vars.COLLECTOR }}-virus-scan-${{ needs.Setup.outputs.Date }}.txt
           path: "*virus*.txt"
