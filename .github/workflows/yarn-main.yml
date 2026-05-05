@@ -170,6 +170,48 @@ jobs:
           output-format: table
           output-file: grype-report.txt
 
+      - name: Add vulnerability summary to job summary
+        if: always()
+        run: |
+          {
+            echo "# Vulnerability Summary"
+            echo ""
+      
+            if [ -f grype-report.txt ]; then
+              echo "## Counts"
+              awk '
+              {
+                sev=tolower($6)
+                if (sev=="critical"||sev=="high"||sev=="medium"||sev=="low") {
+                  counts[sev]++
+                }
+              }
+              END {
+                print "- Critical:", counts["critical"]+0
+                print "- High:", counts["high"]+0
+                print "- Medium:", counts["medium"]+0
+                print "- Low:", counts["low"]+0
+              }
+              ' grype-report.txt
+      
+              echo ""
+              echo "## Top Findings"
+              echo '```'
+              awk 'NR>1 && ($6=="Critical"||$6=="High"||$6=="Medium"||$6=="Low")' grype-report.txt | head -n 50
+              echo '```'
+            else
+              echo "grype-report.txt not found"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload SBOM scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ vars.COLLECTOR }}-sbom-scan-${{ needs.Setup.outputs.Date }}
+          path: grype-report.txt
+          if-no-files-found: error
+
       - name: TARchive verdaccio storage directory
         run: |
           tar -cvI pigz -f ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz \
@@ -275,7 +317,12 @@ jobs:
 
       - name: Copy Markdowns to ISO
         run: cp -v *.md ISO/
-
+        
+      - name: Copy package manifests to ISO
+        run: |
+          mkdir -p ISO/app
+          cp -v package.json ISO/
+          
       - name: Show Artifacts
         run: |
           echo -e "Directory Listing:\n$(ls -1Ssh ISO)"
