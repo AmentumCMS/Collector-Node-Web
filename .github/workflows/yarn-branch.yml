@@ -89,7 +89,7 @@ jobs:
           echo -e "\nEnabling Corepack for Yarn"
           sudo corepack enable
           sudo corepack prepare yarn@stable --activate
-          
+
           echo -e "\nNode Version: $(node -v)"
           echo "Yarn version: $(yarn -v)"
 
