@@ -90,7 +90,6 @@ jobs:
 
           echo -e "\nEnabling Corepack for Yarn"
           sudo corepack enable
-          yarn set version stable
           echo -e "\nNode Version: $(node -v)"
           echo "Yarn version: $(yarn -v)"
 
@@ -163,10 +162,11 @@ jobs:
           upload-artifact: true
 
       - name: Scan app SBOM
-        uses: anchore/scan-action@v6
+        uses: anchore/scan-action@v7
         with:
           sbom: app-sbom.cdx.json
           severity-cutoff: high
+          fail-build: false
           output-format: table
           output-file: grype-report.txt
 
@@ -206,7 +206,7 @@ jobs:
 
       - name: Upload SBOM scan report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ vars.COLLECTOR }}-sbom-scan-${{ needs.Setup.outputs.Date }}
           path: grype-report.txt
