@@ -1,7 +1,7 @@
 name: Sharepoint Upload
 on:
   release:
-    types: [edited, released]
+    types: [ edited, released ]
   workflow_dispatch:
 jobs:
   Date:
@@ -19,7 +19,7 @@ jobs:
           cat $GITHUB_OUTPUT
   Sharepoint:
     runs-on: ubuntu-latest
-    needs: [Date]
+    needs: [ Date ]
     permissions:
       contents: write
       pull-requests: read
@@ -48,7 +48,8 @@ jobs:
           file_path: "${{ vars.COLLECTOR }}-*.*"
           host_name: "${{ secrets.SHAREPOINT_HOST }}"
           site_name: "${{ secrets.SHAREPOINT_SITE }}"
-          upload_path: "${{ secrets.SHAREPOINT_BASEPATH }}/${{ vars.COLLECTOR }}/${{ needs.Date.outputs.Date }}"
+          upload_path: "${{ secrets.SHAREPOINT_BASEPATH }}/${{ vars.COLLECTOR }}/${{
+            needs.Date.outputs.Date }}"
           tenant_id: ${{ secrets.SHAREPOINT_TENANT_ID }}
           client_id: ${{ secrets.SHAREPOINT_APP_ID }}
           client_secret: ${{ secrets.SHAREPOINT_APP_SECRET }}
