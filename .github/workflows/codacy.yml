@@ -1,61 +1,215 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
-# This workflow checks out code, performs a Codacy security scan
-# and integrates the results with the
-# GitHub Advanced Security code scanning feature.  For more information on
-# the Codacy security scan action usage and parameters, see
-# https://github.com/codacy/codacy-analysis-cli-action.
-# For more information on Codacy Analysis CLI in general, see
-# https://github.com/codacy/codacy-analysis-cli.
-
 name: Codacy Security Scan
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    # The branches below must be a subset of the branches above
-    branches: [ "main" ]
+    branches: ["main"]
   schedule:
-    - cron: '22 2 * * 5'
+    - cron: "22 2 * * 5"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   codacy-security-scan:
-    permissions:
-      contents: read # for actions/checkout to fetch code
-      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
-      actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
     name: Codacy Security Scan
     runs-on: ubuntu-latest
-    steps:
-      # Checkout the repository to the GitHub Actions runner
-      - name: Checkout code
-        uses: actions/checkout@v6
 
-      # Execute Codacy Analysis CLI and generate a SARIF output with the security issues identified during the analysis
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Run Codacy Analysis CLI
-        uses: codacy/codacy-analysis-cli-action@d840f886c4bd4edc059706d09c6a1586111c540b
+        uses: codacy/codacy-analysis-cli-action@v4.4.7
         with:
-          # Check https://github.com/codacy/codacy-analysis-cli#project-token to get your project token from your Codacy repository
-          # You can also omit the token and run the tools that support default configurations
           project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
           verbose: true
           output: results.sarif
           format: sarif
-          # Adjust severity of non-security issues
           gh-code-scanning-compat: true
-          # Force 0 exit code to allow SARIF file generation
-          # This will handover control about PR rejection to the GitHub side
           max-allowed-issues: 2147483647
 
-      # Upload the SARIF file generated in the previous step
-      - name: Upload SARIF results file
+      - name: Split Codacy SARIF runs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p sarif-runs
+
+          run_count="$(jq '.runs | length' results.sarif)"
+          echo "Codacy SARIF run count: ${run_count}"
+
+          for i in $(seq 0 $((run_count - 1))); do
+            jq --argjson i "$i" '
+              . as $root
+              | {
+                  version: $root.version,
+                  "$schema": $root["$schema"],
+                  runs: [
+                    (
+                      $root.runs[$i]
+                      | .automationDetails.id = (
+                          "codacy-run-" + ($i | tostring)
+                        )
+                    )
+                  ]
+                }
+            ' results.sarif > "sarif-runs/codacy-${i}.sarif"
+          done
+
+          echo "Generated split SARIF files:"
+          ls -la sarif-runs
+
+      - name: Upload Codacy SARIF run 0
+        if: hashFiles('sarif-runs/codacy-0.sarif') != ''
         uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: results.sarif
+          sarif_file: sarif-runs/codacy-0.sarif
+          category: codacy-0
+
+      - name: Upload Codacy SARIF run 1
+        if: hashFiles('sarif-runs/codacy-1.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-runs/codacy-1.sarif
+          category: codacy-1
+
+      - name: Upload Codacy SARIF run 2
+        if: hashFiles('sarif-runs/codacy-2.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-runs/codacy-2.sarif
+          category: codacy-2
+
+      - name: Upload Codacy SARIF run 3
+        if: hashFiles('sarif-runs/codacy-3.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-runs/codacy-3.sarif
+          category: codacy-3
+
+      - name: Upload Codacy SARIF run 4
+        if: hashFiles('sarif-runs/codacy-4.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-runs/codacy-4.sarif
+          category: codacy-4
+
+      - name: Upload Codacy SARIF run 5
+        if: hashFiles('sarif-runs/codacy-5.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-runs/codacy-5.sarif
+          category: codacy-5
+
+      - name: Upload Codacy SARIF run 6
+        if: hashFiles('sarif-runs/codacy-6.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-runs/codacy-6.sarif
+          category: codacy-6
+
+      - name: Upload Codacy SARIF run 7
+        if: hashFiles('sarif-runs/codacy-7.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-runs/codacy-7.sarif
+          category: codacy-7
+
+      - name: Upload Codacy SARIF run 8
+        if: hashFiles('sarif-runs/codacy-8.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-runs/codacy-8.sarif
+          category: codacy-8
+
+      - name: Upload Codacy SARIF run 9
+        if: hashFiles('sarif-runs/codacy-9.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-runs/codacy-9.sarif
+          category: codacy-9
+
+      - name: Upload Codacy SARIF run 10
+        if: hashFiles('sarif-runs/codacy-10.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-runs/codacy-10.sarif
+          category: codacy-10
+
+      - name: Upload Codacy SARIF run 11
+        if: hashFiles('sarif-runs/codacy-11.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-runs/codacy-11.sarif
+          category: codacy-11
+
+      - name: Upload Codacy SARIF run 12
+        if: hashFiles('sarif-runs/codacy-12.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-runs/codacy-12.sarif
+          category: codacy-12
+
+      - name: Upload Codacy SARIF run 13
+        if: hashFiles('sarif-runs/codacy-13.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-runs/codacy-13.sarif
+          category: codacy-13
+
+      - name: Upload Codacy SARIF run 14
+        if: hashFiles('sarif-runs/codacy-14.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-runs/codacy-14.sarif
+          category: codacy-14
+
+      - name: Upload Codacy SARIF run 15
+        if: hashFiles('sarif-runs/codacy-15.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-runs/codacy-15.sarif
+          category: codacy-15
+
+      - name: Upload Codacy SARIF run 16
+        if: hashFiles('sarif-runs/codacy-16.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-runs/codacy-16.sarif
+          category: codacy-16
+
+      - name: Upload Codacy SARIF run 17
+        if: hashFiles('sarif-runs/codacy-17.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-runs/codacy-17.sarif
+          category: codacy-17
+
+      - name: Upload Codacy SARIF run 18
+        if: hashFiles('sarif-runs/codacy-18.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-runs/codacy-18.sarif
+          category: codacy-18
+
+      - name: Upload Codacy SARIF run 19
+        if: hashFiles('sarif-runs/codacy-19.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-runs/codacy-19.sarif
+          category: codacy-19
+
+      - name: Upload Codacy SARIF run 20
+        if: hashFiles('sarif-runs/codacy-20.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-runs/codacy-20.sarif
+          category: codacy-20
