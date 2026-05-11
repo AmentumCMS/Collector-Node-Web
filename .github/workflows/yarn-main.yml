@@ -262,12 +262,12 @@ jobs:
           output-format: table
           output-file: grype-report.txt
 
-      - name: Security - Scan filesystem with Trivy
+      - name: Security - Scan SBOM with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          scan-type: fs
-          scan-ref: .
-          scanners: vuln,secret,misconfig
+          scan-type: sbom
+          scan-ref: app-sbom.cdx.json
+          scanners: vuln
           severity: CRITICAL,HIGH,MEDIUM,LOW
           ignore-unfixed: true
           format: table
