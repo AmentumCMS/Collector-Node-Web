@@ -169,7 +169,19 @@ jobs:
           fail-build: false
           output-format: table
           output-file: grype-report.txt
-
+          
+      - name: Scan app filesystem with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: CRITICAL,HIGH,MEDIUM,LOW
+          ignore-unfixed: true
+          format: table
+          output: trivy-report.txt
+          exit-code: 0
+          
       - name: Add vulnerability summary to job summary
         if: always()
         run: |
@@ -177,8 +189,9 @@ jobs:
             echo "# Vulnerability Summary"
             echo ""
 
+            echo "## Grype SBOM Scan"
             if [ -f grype-report.txt ]; then
-              echo "## Counts"
+              echo "### Counts"
               awk '
               {
                 sev=tolower($6)
@@ -195,12 +208,22 @@ jobs:
               ' grype-report.txt
 
               echo ""
-              echo "## Top Findings"
+              echo "### Top Grype Findings"
               echo '```'
               awk 'NR>1 && ($6=="Critical"||$6=="High"||$6=="Medium"||$6=="Low")' grype-report.txt | head -n 50
               echo '```'
             else
               echo "grype-report.txt not found"
+            fi
+
+            echo ""
+            echo "## Trivy Filesystem Scan"
+            if [ -f trivy-report.txt ]; then
+              echo '```'
+              head -n 100 trivy-report.txt
+              echo '```'
+            else
+              echo "trivy-report.txt not found"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
