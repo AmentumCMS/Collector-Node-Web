@@ -263,7 +263,7 @@ jobs:
           output-file: grype-report.txt
 
       - name: Security - Scan SBOM with Trivy
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
           scan-type: sbom
           scan-ref: app-sbom.cdx.json
