@@ -19,7 +19,7 @@ jobs:
       v24: ${{ steps.v.outputs.v24 }}
     steps:
       - name: Get current date
-        id: DATE
+        id: date
         run: |
           echo -n "Getting Date: "
           echo "DATE=$(date '+%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
@@ -154,64 +154,6 @@ jobs:
           echo -e "\nListing Consumption"
           du -chd0 node_modules verdaccio/*
 
-      - name: Generate app SBOM (node_modules)
-        uses: anchore/sbom-action@v0
-        with:
-          format: cyclonedx-json
-          output-file: app-sbom.cdx.json
-          upload-artifact: true
-
-      - name: Scan app SBOM
-        uses: anchore/scan-action@v7
-        with:
-          sbom: app-sbom.cdx.json
-          severity-cutoff: high
-          fail-build: false
-          output-format: table
-          output-file: grype-report.txt
-
-      - name: Add vulnerability summary to job summary
-        if: always()
-        run: |
-          {
-            echo "# Vulnerability Summary"
-            echo ""
-
-            if [ -f grype-report.txt ]; then
-              echo "## Counts"
-              awk '
-              {
-                sev=tolower($6)
-                if (sev=="critical"||sev=="high"||sev=="medium"||sev=="low") {
-                  counts[sev]++
-                }
-              }
-              END {
-                print "- Critical:", counts["critical"]+0
-                print "- High:", counts["high"]+0
-                print "- Medium:", counts["medium"]+0
-                print "- Low:", counts["low"]+0
-              }
-              ' grype-report.txt
-
-              echo ""
-              echo "## Top Findings"
-              echo '```'
-              awk 'NR>1 && ($6=="Critical"||$6=="High"||$6=="Medium"||$6=="Low")' grype-report.txt | head -n 50
-              echo '```'
-            else
-              echo "grype-report.txt not found"
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload SBOM scan report
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ vars.COLLECTOR }}-sbom-scan-${{ needs.Setup.outputs.Date }}
-          path: grype-report.txt
-          if-no-files-found: error
-
       - name: TARchive verdaccio storage directory
         run: |
           tar -cvI pigz -f ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz \
@@ -259,9 +201,143 @@ jobs:
           name: ${{ vars.COLLECTOR }}-verdaccio-logs-${{ needs.Setup.outputs.Date }}.log
           path: "verdaccio/*.log"
 
-  MakeISO:
+  SecurityScan:
     runs-on: ubuntu-latest
     needs: [ Setup, Collect ]
+
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+          lfs: true
+
+      - name: Use Node.js ${{ needs.Setup.outputs.v18 }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ needs.Setup.outputs.v18 }}
+
+      - name: Enable Corepack
+        run: |
+          sudo corepack enable
+          echo "Node Version: $(node -v)"
+          echo "Yarn Version: $(yarn -v)"
+
+      - name: Restore Yarn cache artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz
+
+      - name: Extract Yarn cache
+        run: |
+          tar -xzvf ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz
+
+      - name: Configure Yarn for offline cache
+        run: |
+          yarn config set enableGlobalCache false
+          yarn config set nodeLinker node-modules
+
+      - name: Install dependencies from offline cache
+        run: |
+          yarn install --immutable --immutable-cache
+
+      - name: Security - Generate app SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          format: cyclonedx-json
+          output-file: app-sbom.cdx.json
+          upload-artifact: false
+
+      - name: Security - Scan SBOM with Grype
+        uses: anchore/scan-action@v7
+        with:
+          sbom: app-sbom.cdx.json
+          severity-cutoff: high
+          fail-build: false
+          output-format: table
+          output-file: grype-report.txt
+
+      - name: Security - Scan filesystem with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: CRITICAL,HIGH,MEDIUM,LOW
+          ignore-unfixed: true
+          format: table
+          output: trivy-report.txt
+          exit-code: 0
+
+      - name: Security - Write summary
+        if: always()
+        run: |
+          {
+            echo "# Security Scan Summary"
+            echo ""
+
+            echo "## Grype SBOM Scan"
+            echo ""
+
+            if [ -f grype-report.txt ]; then
+              echo "### Severity Counts"
+              awk '
+              {
+                sev=tolower($6)
+                if (sev=="critical"||sev=="high"||sev=="medium"||sev=="low") {
+                  counts[sev]++
+                }
+              }
+              END {
+                print "- Critical:", counts["critical"]+0
+                print "- High:", counts["high"]+0
+                print "- Medium:", counts["medium"]+0
+                print "- Low:", counts["low"]+0
+              }
+              ' grype-report.txt
+
+              echo ""
+              echo "### Top Grype Findings"
+              echo '```'
+              awk 'NR>1 && ($6=="Critical"||$6=="High"||$6=="Medium"||$6=="Low")' grype-report.txt | head -n 50
+              echo '```'
+            else
+              echo "grype-report.txt not found."
+            fi
+
+            echo ""
+            echo "## Trivy Filesystem Scan"
+            echo ""
+
+            if [ -f trivy-report.txt ]; then
+              echo "### Top Trivy Findings"
+              echo '```'
+              head -n 100 trivy-report.txt
+              echo '```'
+            else
+              echo "trivy-report.txt not found."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Security - Upload scan reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ vars.COLLECTOR }}-security-scans-${{ needs.Setup.outputs.Date }}
+          path: |
+            app-sbom.cdx.json
+            grype-report.txt
+            trivy-report.txt
+          if-no-files-found: warn
+
+  MakeISO:
+    runs-on: ubuntu-latest
+    needs: [ Setup, Collect, SecurityScan ]
     env:
       GH_TOKEN: ${{ github.token }}
     permissions:
@@ -484,7 +560,7 @@ jobs:
 
   Release:
     runs-on: ubuntu-latest
-    needs: [ Setup, VirusScan, OfflineTest ]
+    needs: [ Setup, VirusScan, OfflineTest, SecurityScan ]
     permissions:
       contents: write
       pull-requests: read
