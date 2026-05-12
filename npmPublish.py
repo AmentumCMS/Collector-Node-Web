@@ -44,13 +44,13 @@ Auth:
     NEXUS_PASSWORD=xxxxx
 
 Usage:
-  python3 import-verdaccio-to-nexus.py \
+  python3 npmPublish.py \
     --input collector-node-web-verdaccio-20260511-2310.tgz \
     --registry https://nexus.example.com/repository/npm-hosted/ \
     --workers 8
 
 Dry run:
-  python3 import-verdaccio-to-nexus.py \
+  python3 npmPublish.py \
     --input collector-node-web-verdaccio-20260511-2310.tgz \
     --registry https://nexus.example.com/repository/npm-hosted/ \
     --workers 8 \
@@ -112,23 +112,59 @@ def log(message: str) -> None:
         print(message, flush=True)
 
 
+def run_command(
+    cmd: list[str],
+    timeout: int,
+    env: dict[str, str],
+) -> subprocess.CompletedProcess[str]:
+    """
+    Run a trusted executable with fixed arguments.
+
+    Security notes:
+      - shell=False is intentional.
+      - npm_bin is resolved through shutil.which or an explicit existing path.
+      - package paths come from extracted tarballs after validation.
+    """
+    return subprocess.run(
+        cmd,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=timeout,
+        env=env,
+        shell=False,
+        check=False,
+    )
+
+
 def safe_extract_tar(tar: tarfile.TarFile, destination: Path) -> None:
     """
-    Safely extract a tar archive and prevent path traversal.
-
-    Blocks entries like:
-      ../../evil
-      /absolute/path
+    Safely extract a tar archive and prevent path traversal, unsafe links,
+    devices, and other special file types.
     """
     destination = destination.resolve()
 
     for member in tar.getmembers():
-        member_path = (destination / member.name).resolve()
+        member_name = member.name.replace("\\", "/")
 
-        if not str(member_path).startswith(str(destination)):
+        if member_name.startswith("/") or member_name.startswith("../") or "/../" in member_name:
             raise ValueError(f"unsafe path in tar archive: {member.name}")
 
-    tar.extractall(destination)
+        member_path = (destination / member_name).resolve()
+
+        if os.path.commonpath([str(destination), str(member_path)]) != str(destination):
+            raise ValueError(f"unsafe path in tar archive: {member.name}")
+
+        if member.islnk() or member.issym():
+            raise ValueError(f"refusing link in tar archive: {member.name}")
+
+        if member.isdev():
+            raise ValueError(f"refusing device file in tar archive: {member.name}")
+
+        if not (member.isfile() or member.isdir()):
+            raise ValueError(f"refusing special tar member: {member.name}")
+
+        tar.extract(member, destination)
 
 
 def prepare_input(input_path: Path) -> tuple[Path, Optional[tempfile.TemporaryDirectory]]:
@@ -358,6 +394,19 @@ def build_auth_header() -> Optional[str]:
     return None
 
 
+def validate_registry_url(registry: str) -> str:
+    registry = normalize_registry(registry)
+    parsed = urllib.parse.urlparse(registry)
+
+    if parsed.scheme not in {"http", "https"}:
+        raise ValueError(f"registry URL must use http or https: {registry}")
+
+    if not parsed.netloc:
+        raise ValueError(f"registry URL is missing host: {registry}")
+
+    return registry
+
+
 def exists_via_registry_metadata(
     package: PackageTarball,
     registry: str,
@@ -415,9 +464,10 @@ def exists_via_npm_view(
     registry: str,
     timeout: int,
     npmrc: Optional[Path],
+    npm_bin: str,
 ) -> bool:
     cmd = [
-        "npm",
+        npm_bin,
         "view",
         package.spec,
         "version",
@@ -428,11 +478,8 @@ def exists_via_npm_view(
 
     env = build_subprocess_env(npmrc)
 
-    proc = subprocess.run(
-        cmd,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+    proc = run_command(
+        cmd=cmd,
         timeout=timeout,
         env=env,
     )
@@ -464,14 +511,14 @@ def package_exists(
     timeout: int,
     force_npm_view: bool,
     npmrc: Optional[Path],
+    npm_bin: str,
 ) -> bool:
     if not force_npm_view:
         result = exists_via_registry_metadata(package, registry, timeout)
         if result is not None:
             return result
 
-    return exists_via_npm_view(package, registry, timeout, npmrc)
-
+    return exists_via_npm_view(package, registry, timeout, npmrc, npm_bin)
 
 def build_subprocess_env(npmrc: Optional[Path]) -> dict[str, str]:
     env = os.environ.copy()
@@ -489,9 +536,10 @@ def npm_publish(
     ignore_scripts: bool,
     tag: Optional[str],
     npmrc: Optional[Path],
+    npm_bin: str,
 ) -> None:
     cmd = [
-        "npm",
+        npm_bin,
         "publish",
         str(package.path),
         "--registry",
@@ -506,11 +554,8 @@ def npm_publish(
 
     env = build_subprocess_env(npmrc)
 
-    proc = subprocess.run(
-        cmd,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+    proc = run_command(
+        cmd=cmd,
         timeout=timeout,
         env=env,
     )
@@ -546,10 +591,11 @@ def import_one(
     tag: Optional[str],
     retries: int,
     npmrc: Optional[Path],
+    npm_bin: str,
 ) -> ImportResult:
     for attempt in range(1, retries + 2):
         try:
-            if package_exists(package, registry, check_timeout, force_npm_view, npmrc):
+            if package_exists(package, registry, check_timeout, force_npm_view, npmrc, npm_bin):
                 return ImportResult(
                     status="skipped",
                     package=package.spec,
@@ -572,6 +618,7 @@ def import_one(
                 ignore_scripts=ignore_scripts,
                 tag=tag,
                 npmrc=npmrc,
+                npm_bin=npm_bin,
             )
 
             return ImportResult(
@@ -640,9 +687,19 @@ def writer_thread_func(
             fh.close()
 
 
-def ensure_npm_available() -> None:
-    if shutil.which("npm") is None:
-        raise RuntimeError("npm was not found on PATH")
+def ensure_npm_available() -> str:
+    return get_npm_executable()
+
+
+def get_npm_executable() -> str:
+    candidates = ["npm.cmd", "npm.exe", "npm"]
+
+    for candidate in candidates:
+        npm_path = shutil.which(candidate)
+        if npm_path:
+            return npm_path
+
+    raise RuntimeError("npm was not found on PATH")
 
 
 def normalize_registry(registry: str) -> str:
@@ -754,14 +811,15 @@ def main() -> int:
     args = parse_args()
 
     try:
-        ensure_npm_available()
+        npm_bin = ensure_npm_available()
+        log(f"Using npm executable: {npm_bin}")
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
 
     try:
         input_path = Path(args.input).resolve()
-        registry = normalize_registry(args.registry)
+        registry = validate_registry_url(args.registry)
         npmrc = Path(args.npmrc).resolve() if args.npmrc else None
 
         if npmrc and not npmrc.is_file():
@@ -830,6 +888,7 @@ def main() -> int:
                     args.tag,
                     args.retries,
                     npmrc,
+                    npm_bin=npm_bin,
                 ): package
                 for package in packages
             }
