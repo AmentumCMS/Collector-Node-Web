@@ -115,13 +115,13 @@ jobs:
           echo -e "\nVerdaccio is ready. Proceeding with Yarn install."
 
           cat >> .yarnrc.yml <<'YRC'
-npmRegistryServer: "http://localhost:4873"
-YRC
+          npmRegistryServer: "http://localhost:4873"
+          YRC
 
           cat >> .npmrc <<'NPMRC'
-registry=http://localhost:4873
-strict-ssl=false
-NPMRC
+          registry=http://localhost:4873
+          strict-ssl=false
+          NPMRC
 
           echo -en "\nVerify Berry sees the registry we set: "
           yarn config get npmRegistryServer
