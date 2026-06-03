@@ -1,18 +1,16 @@
-name: Node Collector Webclient - Main Workflow
-run-name: ${{ github.actor }} is Collecting Nodi-ness🚀
+name: Node Collector Webclient
+run-name: ${{ github.actor }} is Collecting Nodi-ness
 on:
   push:
-    branches:
-      - main
   schedule:
-    - cron: "0 0 1 * *" # Update on First of month at midnight UTC
+    - cron: "0 0 1 * *" # First of month at midnight UTC
   workflow_dispatch:
 
 jobs:
   Setup:
     runs-on: ubuntu-latest
     outputs:
-      Date: ${{ steps.date.outputs.date }}
+      date: ${{ steps.date.outputs.date }}
       v18: ${{ steps.v.outputs.v18 }}
       v20: ${{ steps.v.outputs.v20 }}
       v22: ${{ steps.v.outputs.v22 }}
@@ -22,28 +20,24 @@ jobs:
         id: date
         run: |
           echo -n "Getting Date: "
-          echo "DATE=$(date '+%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
-          echo -e "$DATE\nFile:\n$GITHUB_OUTPUT"
+          echo "date=$(date '+%Y%m%d-%H%M')" >> "$GITHUB_OUTPUT"
           echo -e "\nValues:"
-          cat $GITHUB_OUTPUT
+          cat "$GITHUB_OUTPUT"
 
       - name: Get current node versions
         id: v
         run: |
           echo -e "Getting versions"
 
-          # Fetch the Node.js version data
           node_versions=$(curl -s https://nodejs.org/dist/index.json)
 
-          # Function to get the latest version for a specific major version
-          get_version() { 
-            major_version=$1 
-            echo $node_versions |\
+          get_version() {
+            major_version=$1
+            echo "$node_versions" | \
               jq -r --arg major_version "v$major_version" \
                 '[.[] | select(.version | startswith($major_version))][0].version'
           }
 
-          # Fetch the latest versions for v18, v20, v22, and v24
           v18=$(get_version 18)
           v20=$(get_version 20)
           v22=$(get_version 22)
@@ -54,14 +48,13 @@ jobs:
           echo "The latest Node.js v22 version is: $v22"
           echo "The latest Node.js v24 version is: $v24"
 
-          echo "v18=${v18}" >> $GITHUB_OUTPUT
-          echo "v20=${v20}" >> $GITHUB_OUTPUT
-          echo "v22=${v22}" >> $GITHUB_OUTPUT
-          echo "v24=${v24}" >> $GITHUB_OUTPUT
+          echo "v18=${v18}" >> "$GITHUB_OUTPUT"
+          echo "v20=${v20}" >> "$GITHUB_OUTPUT"
+          echo "v22=${v22}" >> "$GITHUB_OUTPUT"
+          echo "v24=${v24}" >> "$GITHUB_OUTPUT"
 
-          echo -e "\nFile:\n$GITHUB_OUTPUT"
-          echo "Values:"
-          cat $GITHUB_OUTPUT
+          echo -e "\nValues:"
+          cat "$GITHUB_OUTPUT"
 
   Collect:
     runs-on: ubuntu-latest
@@ -90,6 +83,8 @@ jobs:
 
           echo -e "\nEnabling Corepack for Yarn"
           sudo corepack enable
+          sudo corepack prepare yarn@stable --activate
+
           echo -e "\nNode Version: $(node -v)"
           echo "Yarn version: $(yarn -v)"
 
@@ -103,11 +98,10 @@ jobs:
           export XDG_DATA_HOME=$PWD
 
           echo -e "\nStarting Verdaccio"
-          yarn dlx verdaccio >\
-            verdaccio/verdaccio.log 2>\
-            verdaccio/verdaccio-err.log &
+          yarn dlx verdaccio \
+            > verdaccio/verdaccio.log \
+            2> verdaccio/verdaccio-err.log &
 
-          # Wait until Verdaccio is ready (adjust if needed)
           echo -n "Waiting for Verdaccio to be ready: "
           for i in {1..30}; do
             if curl -sw "$i " http://localhost:4873/ -o /dev/null; then break; fi
@@ -120,15 +114,14 @@ jobs:
           tail -n +1 verdaccio/verdaccio-err.log || true
           echo -e "\nVerdaccio is ready. Proceeding with Yarn install."
 
-          # Create a deterministic .yarnrc.yml for Berry
           cat >> .yarnrc.yml <<'YRC'
-          npmRegistryServer: "http://localhost:4873"
-          YRC
+npmRegistryServer: "http://localhost:4873"
+YRC
 
           cat >> .npmrc <<'NPMRC'
-          registry=http://localhost:4873
-          strict-ssl=false
-          NPMRC
+registry=http://localhost:4873
+strict-ssl=false
+NPMRC
 
           echo -en "\nVerify Berry sees the registry we set: "
           yarn config get npmRegistryServer
@@ -138,7 +131,8 @@ jobs:
           corepack pack -o .yarn/yarn-pack.tar.gz
 
           echo -e "\nFixes for individual packages."
-          curl -sSLw "Redownloaded process-0.11.10.tgz" "http://localhost:4873/process/-/process-0.11.10.tgz" \
+          curl -sSLw "Redownloaded process-0.11.10.tgz" \
+            "http://localhost:4873/process/-/process-0.11.10.tgz" \
             -o /tmp/process-0.11.10.tgz
 
           echo -e "\nPacking validator@0.1.1"
@@ -156,25 +150,25 @@ jobs:
 
       - name: TARchive verdaccio storage directory
         run: |
-          tar -cvI pigz -f ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz \
+          tar -cvI pigz -f ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.date }}.tgz \
             verdaccio \
-            | tee ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz.txt
+            | tee ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.date }}.tgz.txt
 
       - name: TARchive verdaccio storage directory SHA HASH
         run: |
-          sha256sum -b ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz | tee \
-            ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz.sha
+          sha256sum -b ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.date }}.tgz | tee \
+            ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.date }}.tgz.sha
 
       - name: TARchive .yarn directory
         run: |
-          tar -cvI pigz -f ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz \
+          tar -cvI pigz -f ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.date }}.tgz \
             .yarn yarn.lock \
-            | tee ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz.txt
+            | tee ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.date }}.tgz.txt
 
-      - name: TARchive yarn-cache storage directory SHA HASH
+      - name: TARchive .yarn directory SHA HASH
         run: |
-          sha256sum -b ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz | tee \
-            ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz.sha
+          sha256sum -b ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.date }}.tgz | tee \
+            ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.date }}.tgz.sha
 
       - name: Artifact Listings
         run: |
@@ -184,21 +178,21 @@ jobs:
       - name: Upload verdaccio artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz
-          path: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz*
+          name: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.date }}.tgz
+          path: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.date }}.tgz*
           if-no-files-found: error
 
       - name: Upload yarn-cache artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz
-          path: ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz*
+          name: ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.date }}.tgz
+          path: ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.date }}.tgz*
           if-no-files-found: error
 
       - name: Upload Logs
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ vars.COLLECTOR }}-verdaccio-logs-${{ needs.Setup.outputs.Date }}.log
+          name: ${{ vars.COLLECTOR }}-verdaccio-logs-${{ needs.Setup.outputs.date }}.log
           path: "verdaccio/*.log"
 
   SecurityScan:
@@ -225,17 +219,17 @@ jobs:
       - name: Enable Corepack
         run: |
           sudo corepack enable
+          sudo corepack prepare yarn@stable --activate
           echo "Node Version: $(node -v)"
           echo "Yarn Version: $(yarn -v)"
 
       - name: Restore Yarn cache artifact
         uses: actions/download-artifact@v8
         with:
-          name: ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz
+          name: ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.date }}.tgz
 
       - name: Extract Yarn cache
-        run: |
-          tar -xzvf ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz
+        run: tar -xzvf ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.date }}.tgz
 
       - name: Configure Yarn for offline cache
         run: |
@@ -243,8 +237,7 @@ jobs:
           yarn config set nodeLinker node-modules
 
       - name: Install dependencies from offline cache
-        run: |
-          yarn install --immutable --immutable-cache
+        run: yarn install --immutable --immutable-cache
 
       - name: Security - Generate app SBOM
         uses: anchore/sbom-action@v0
@@ -328,7 +321,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ vars.COLLECTOR }}-security-scans-${{ needs.Setup.outputs.Date }}
+          name: ${{ vars.COLLECTOR }}-security-scans-${{ needs.Setup.outputs.date }}
           path: |
             app-sbom.cdx.json
             grype-report.txt
@@ -366,9 +359,9 @@ jobs:
           for VERSION in ${{ needs.Setup.outputs.v18 }} ${{ needs.Setup.outputs.v20 }} ${{ needs.Setup.outputs.v22 }} ${{ needs.Setup.outputs.v24 }}; do
             echo -e "\nDownloading Node.js $VERSION"
             for FILE in x64.msi win-x64.zip linux-x64.tar.xz; do
-              curl -sSLw "Downloaded node-${VERSION}-${FILE} (%{http_code}: %{size_download}B)\n"\
-              https://nodejs.org/dist/latest-${VERSION%%.*}.x/node-${VERSION}-${FILE} \
-                -o node-${VERSION}-${FILE}
+              curl -sSLw "Downloaded node-${VERSION}-${FILE} (%{http_code}: %{size_download}B)\n" \
+                "https://nodejs.org/dist/latest-${VERSION%%.*}.x/node-${VERSION}-${FILE}" \
+                -o "node-${VERSION}-${FILE}"
             done
           done
           echo -e "\nListing downloaded files:\n$(ls -1Ssh)"
@@ -383,8 +376,8 @@ jobs:
           for RELEASE_TAG in 4.12.0 4.10.2 4.5.3; do
             for FILE in js js.sign js.pem; do
               curl -sSLw "Downloaded yarn-$RELEASE_TAG.$FILE (%{http_code}: %{size_download}B)\n" \
-                https://repo.yarnpkg.com/$RELEASE_TAG/packages/yarnpkg-cli/bin/yarn.$FILE \
-                -o yarn-${RELEASE_TAG}.$FILE
+                "https://repo.yarnpkg.com/$RELEASE_TAG/packages/yarnpkg-cli/bin/yarn.$FILE" \
+                -o "yarn-${RELEASE_TAG}.$FILE"
             done
           done
           echo -e "\nListing downloaded files:\n$(ls -1Ssh)"
@@ -395,39 +388,58 @@ jobs:
         run: cp -v *.md ISO/
 
       - name: Copy package manifests to ISO
+        run: cp -v package.json ISO/
+
+      - name: Package source repository into ISO
         run: |
-          mkdir -p ISO/app
-          cp -v package.json ISO/
+          echo -e "\nPackaging source repository"
+          mkdir -p ISO/source
+          tar \
+            --exclude='.git' \
+            --exclude='ISO' \
+            --exclude='node_modules' \
+            --exclude='verdaccio' \
+            --exclude='*.tgz' \
+            --exclude='*.iso' \
+            --exclude='*.sha' \
+            --exclude='*.txt' \
+            -czvf "ISO/source/${{ vars.COLLECTOR }}-source-${{ needs.Setup.outputs.date }}.tgz" \
+            .
+          cd ISO/source
+          sha256sum -b "${{ vars.COLLECTOR }}-source-${{ needs.Setup.outputs.date }}.tgz" \
+            | tee "${{ vars.COLLECTOR }}-source-${{ needs.Setup.outputs.date }}.tgz.sha"
+          echo -e "\nSource package:"
+          ls -1Ssh
 
       - name: Show Artifacts
         run: |
           echo -e "Directory Listing:\n$(ls -1Ssh ISO)"
           echo -e "\nDirectory Size:\n$(du -chd0 ISO)"
-          echo -e "\nFile structure:\n$(tree -L 3 ISO|tee ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.txt)"
+          echo -e "\nFile structure:\n$(tree -L 3 ISO | tee ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.date }}.txt)"
 
       - name: Generate Comprehensive Artifacts Hash File
         run: |
           cd ISO
           sha256sum -b * vscode/* runtimes/* | tee \
-            ../${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.sha
+            ../${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.date }}.sha
           cd -
-          cp -v ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.??? ISO/
+          cp -v ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.date }}.??? ISO/
 
       - name: Make ISO
         run: |
           mkisofs -J -R -v -T -l \
-            -V '${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}' \
-            -A '${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}' \
-            -o ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso \
+            -V '${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.date }}' \
+            -A '${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.date }}' \
+            -o ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.date }}.iso \
             ISO
 
       - name: Implant MD5 sum into iso
-        run: implantisomd5 ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
+        run: implantisomd5 ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.date }}.iso
 
       - name: Generate ISO Hash
         run: |
-          sha256sum -b ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso | tee \
-            ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
+          sha256sum -b ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.date }}.iso | tee \
+            ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.date }}.iso.sha
 
       - name: Show ISO & Hash
         run: ls -1Ssh *.iso*
@@ -435,15 +447,15 @@ jobs:
       - name: Upload ISO
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
-          path: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso*
+          name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.date }}.iso
+          path: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.date }}.iso*
           if-no-files-found: error
 
       - name: Upload ISO SHA
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
-          path: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
+          name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.date }}.iso.sha
+          path: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.date }}.iso.sha
           if-no-files-found: error
 
   VirusScan:
@@ -456,13 +468,13 @@ jobs:
       - name: Download ISO artifact
         uses: actions/download-artifact@v8
         with:
-          name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
+          name: ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.date }}.iso
 
       - name: Download TGZ artifacts
         uses: actions/download-artifact@v8
         with:
           merge-multiple: true
-          pattern: "*-${{ needs.Setup.outputs.Date }}.tgz"
+          pattern: "*-${{ needs.Setup.outputs.date }}.tgz"
 
       - name: List files to scan
         run: |
@@ -482,22 +494,22 @@ jobs:
       - name: Save scan summary
         if: always()
         run: |
-          echo "Virus scan completed" > ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
-          echo "Scan finished: ${{ steps.virus_scan.outputs.finish }}" >> ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
-          echo "Viruses found: ${{ steps.virus_scan.outputs.found }}" >> ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
-          echo "" >> ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
-          echo "For detailed scan results, check the job logs and step summary." >> ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt
+          {
+            echo "Virus scan completed"
+            echo "Scan finished: ${{ steps.virus_scan.outputs.finish }}"
+            echo "Viruses found: ${{ steps.virus_scan.outputs.found }}"
+            echo ""
+            echo "For detailed scan results, check the job logs and step summary."
+          } | tee ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.date }}.txt
 
-          echo -e "\nGenerated Virus Scan Report:\n$(cat ${{ vars.COLLECTOR }}-virus-scan-report-${{ needs.Setup.outputs.Date }}.txt)"
-
-          echo -e "\nScan Statistics:\n$(cat $GITHUB_STEP_SUMMARY)" \
-          | tee ${{ vars.COLLECTOR }}-virus-scan-statistics-${{ needs.Setup.outputs.Date }}.txt
+          echo -e "\nScan Statistics:\n$(cat "$GITHUB_STEP_SUMMARY")" \
+            | tee ${{ vars.COLLECTOR }}-virus-scan-statistics-${{ needs.Setup.outputs.date }}.txt
 
       - name: Upload virus scan report
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ vars.COLLECTOR }}-virus-scan-${{ needs.Setup.outputs.Date }}.txt
+          name: ${{ vars.COLLECTOR }}-virus-scan-${{ needs.Setup.outputs.date }}.txt
           path: "*virus*.txt"
           if-no-files-found: warn
 
@@ -522,7 +534,7 @@ jobs:
       - name: Download ISO and hash
         uses: actions/download-artifact@v8
         with:
-          pattern: "${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso*"
+          pattern: "${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.date }}.iso*"
           merge-multiple: true
 
       - name: Validate ISO Hashes
@@ -530,27 +542,25 @@ jobs:
           echo -e "List Artifacts"
           ls -Alht
           echo -e "\nCheck injected ISO MD5"
-          checkisomd5 ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso
+          checkisomd5 ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.date }}.iso
           echo -e "\nCheck ISO sha256"
-          sha256sum -cw ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
+          sha256sum -cw ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.date }}.iso.sha
 
       - name: Mount ISO
-        run: sudo mount -v -o loop ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date
-          }}.iso /mnt
+        run: sudo mount -v -o loop ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.date }}.iso /mnt
 
       - name: UnTARchive Yarn Cache
-        run: tar -xzvf /mnt/${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date
-          }}.tgz
+        run: tar -xzvf /mnt/${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.date }}.tgz
 
       - name: Run yarn install
         run: |
           echo -e "Setup Yarn"
           sudo corepack enable
-          echo -e "Configure Yarn for inaccessable network"
+          echo -e "Configure Yarn for inaccessible network"
           npm set registry http://localhost:4873/
           yarn config set npmRegistryServer http://localhost:4873/
           echo -e "\nRun yarn install\n"
-          yarn install --immutable  --immutable-cache
+          yarn install --immutable --immutable-cache
           corepack pack -o .yarn/yarn-pack.tar.gz
 
       - name: Run yarn
@@ -559,6 +569,7 @@ jobs:
           yarn run
 
   Release:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     needs: [ Setup, VirusScan, OfflineTest, SecurityScan ]
     permissions:
@@ -588,16 +599,15 @@ jobs:
         uses: rickstaa/action-create-tag@v1
         id: tag_create
         with:
-          tag: ${{ needs.Setup.outputs.Date }}
-          github_token: ${{secrets.GITHUB_TOKEN}}
+          tag: ${{ needs.Setup.outputs.date }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           tag_exists_error: false
-          message: "Release for ${{ needs.Setup.outputs.Date }} run"
+          message: "Release for ${{ needs.Setup.outputs.date }} run"
 
       - name: Create Release
-        id: create_release
         uses: softprops/action-gh-release@v3
         with:
-          name: ${{ vars.COLLECTOR }} ${{ needs.Setup.outputs.Date }}
-          tag_name: ${{ needs.Setup.outputs.Date }}
+          name: ${{ vars.COLLECTOR }} ${{ needs.Setup.outputs.date }}
+          tag_name: ${{ needs.Setup.outputs.date }}
           make_latest: true
           files: ${{ vars.COLLECTOR }}-*.*
