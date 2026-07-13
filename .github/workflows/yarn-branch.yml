@@ -394,6 +394,33 @@ jobs:
           mkdir -p ISO/app
           cp -v package.json ISO/
 
+      - name: Package source repository into ISO
+        run: |
+          echo -e "\nPackaging source repository"
+
+          mkdir -p ISO/source
+
+          # Create a clean source snapshot from the checked-out commit.
+          # This excludes the .git directory and generated ISO staging/output files.
+          tar \
+            --exclude='.git' \
+            --exclude='ISO' \
+            --exclude='node_modules' \
+            --exclude='verdaccio' \
+            --exclude='*.tgz' \
+            --exclude='*.iso' \
+            --exclude='*.sha' \
+            --exclude='*.txt' \
+            -czvf ISO/source/${{ vars.COLLECTOR }}-source-${{ needs.Setup.outputs.Date }}.tgz \
+            .
+
+          cd ISO/source
+          sha256sum -b ${{ vars.COLLECTOR }}-source-${{ needs.Setup.outputs.Date }}.tgz \
+            | tee ${{ vars.COLLECTOR }}-source-${{ needs.Setup.outputs.Date }}.tgz.sha
+
+          echo -e "\nSource package:"
+          ls -1Ssh
+
       - name: Show Artifacts
         run: |
           echo -e "Directory Listing:\n$(ls -1Ssh ISO)"
