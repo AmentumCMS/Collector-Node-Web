@@ -57,7 +57,7 @@ sweep_one() {
   local enc; enc="$(encode_pkg "$name")"
 
   local meta
-  meta="$(curl -fsSL "$VERDACCIO_URL/$enc")" || {
+  meta="$(curl -fsSL --max-time 30 "$VERDACCIO_URL/$enc")" || {
     echo "WARN: metadata fetch failed for $name@$version" >&2
     return
   }
@@ -77,10 +77,10 @@ sweep_one() {
 
   echo "GET $local_url  ->  $dest"
 
-  if ! curl -fsSL --retry 3 --retry-delay 1 -o "$tmp" "$local_url"; then
+  if ! curl -fsSL --max-time 60 --retry 3 --retry-delay 1 -o "$tmp" "$local_url"; then
     if [ -n "$tarball" ]; then
       echo "FALLBACK GET $tarball  ->  $dest"
-      curl -fsSL --retry 3 --retry-delay 1 -o "$tmp" "$tarball" || {
+      curl -fsSL --max-time 60 --retry 3 --retry-delay 1 -o "$tmp" "$tarball" || {
         echo "ERROR: failed to download tarball for $name@$version" >&2
         rm -f "$tmp"
         return
@@ -101,7 +101,7 @@ for line in "${pairs[@]}"; do
 
   semaphore
   sweep_one "$name" "$version" &
-   pids+=($!)
+  pids+=($!)
 done
 
 for pid in "${pids[@]}"; do wait "$pid"; done

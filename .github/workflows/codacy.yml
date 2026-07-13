@@ -67,149 +67,26 @@ jobs:
           echo "Generated split SARIF files:"
           ls -la sarif-runs
 
-      - name: Upload Codacy SARIF run 0
-        if: hashFiles('sarif-runs/codacy-0.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-runs/codacy-0.sarif
-          category: codacy-0
-
-      - name: Upload Codacy SARIF run 1
-        if: hashFiles('sarif-runs/codacy-1.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-runs/codacy-1.sarif
-          category: codacy-1
-
-      - name: Upload Codacy SARIF run 2
-        if: hashFiles('sarif-runs/codacy-2.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-runs/codacy-2.sarif
-          category: codacy-2
-
-      - name: Upload Codacy SARIF run 3
-        if: hashFiles('sarif-runs/codacy-3.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-runs/codacy-3.sarif
-          category: codacy-3
-
-      - name: Upload Codacy SARIF run 4
-        if: hashFiles('sarif-runs/codacy-4.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-runs/codacy-4.sarif
-          category: codacy-4
-
-      - name: Upload Codacy SARIF run 5
-        if: hashFiles('sarif-runs/codacy-5.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-runs/codacy-5.sarif
-          category: codacy-5
-
-      - name: Upload Codacy SARIF run 6
-        if: hashFiles('sarif-runs/codacy-6.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-runs/codacy-6.sarif
-          category: codacy-6
-
-      - name: Upload Codacy SARIF run 7
-        if: hashFiles('sarif-runs/codacy-7.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-runs/codacy-7.sarif
-          category: codacy-7
-
-      - name: Upload Codacy SARIF run 8
-        if: hashFiles('sarif-runs/codacy-8.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-runs/codacy-8.sarif
-          category: codacy-8
-
-      - name: Upload Codacy SARIF run 9
-        if: hashFiles('sarif-runs/codacy-9.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-runs/codacy-9.sarif
-          category: codacy-9
-
-      - name: Upload Codacy SARIF run 10
-        if: hashFiles('sarif-runs/codacy-10.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-runs/codacy-10.sarif
-          category: codacy-10
-
-      - name: Upload Codacy SARIF run 11
-        if: hashFiles('sarif-runs/codacy-11.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-runs/codacy-11.sarif
-          category: codacy-11
-
-      - name: Upload Codacy SARIF run 12
-        if: hashFiles('sarif-runs/codacy-12.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-runs/codacy-12.sarif
-          category: codacy-12
-
-      - name: Upload Codacy SARIF run 13
-        if: hashFiles('sarif-runs/codacy-13.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-runs/codacy-13.sarif
-          category: codacy-13
-
-      - name: Upload Codacy SARIF run 14
-        if: hashFiles('sarif-runs/codacy-14.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-runs/codacy-14.sarif
-          category: codacy-14
-
-      - name: Upload Codacy SARIF run 15
-        if: hashFiles('sarif-runs/codacy-15.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-runs/codacy-15.sarif
-          category: codacy-15
-
-      - name: Upload Codacy SARIF run 16
-        if: hashFiles('sarif-runs/codacy-16.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-runs/codacy-16.sarif
-          category: codacy-16
-
-      - name: Upload Codacy SARIF run 17
-        if: hashFiles('sarif-runs/codacy-17.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-runs/codacy-17.sarif
-          category: codacy-17
-
-      - name: Upload Codacy SARIF run 18
-        if: hashFiles('sarif-runs/codacy-18.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-runs/codacy-18.sarif
-          category: codacy-18
-
-      - name: Upload Codacy SARIF run 19
-        if: hashFiles('sarif-runs/codacy-19.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-runs/codacy-19.sarif
-          category: codacy-19
-
-      - name: Upload Codacy SARIF run 20
-        if: hashFiles('sarif-runs/codacy-20.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-runs/codacy-20.sarif
-          category: codacy-20
+      - name: Upload Codacy SARIF runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(sarif-runs/codacy-*.sarif)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No SARIF files found, skipping upload."
+            exit 0
+          fi
+          for sarif_file in "${files[@]}"; do
+            echo "Uploading $sarif_file ..."
+            encoded=$(gzip -c "$sarif_file" | base64 -w 0)
+            gh api \
+              --method POST \
+              "/repos/${{ github.repository }}/code-scanning/sarifs" \
+              -f "commit_sha=${{ github.sha }}" \
+              -f "ref=${{ github.ref }}" \
+              -f "sarif=${encoded}"
+          done
+          echo "Uploaded ${#files[@]} SARIF file(s)."
