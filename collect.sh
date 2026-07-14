@@ -26,7 +26,7 @@ tar -cvzf $ROOTDIR/yarn-cache-$DATE.tgz \
   | tee yarn-cache-$DATE.tgz.txt
 
 echo -e "\nDirectory Contents"
-ls -lAhS $ROOTDIR/*
+ls -1Ssh $ROOTDIR/*
 echo -e "\nDirectory Size"
 du -hd2 $ROOTDIR/*
 echo -e "\nDirectory Tree" 
