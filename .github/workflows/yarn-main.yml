@@ -19,7 +19,7 @@ jobs:
       v24: ${{ steps.v.outputs.v24 }}
     steps:
       - name: Get current date
-        id: date
+        id: Date
         run: |
           echo -n "Getting Date: "
           echo "DATE=$(date '+%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
@@ -90,6 +90,8 @@ jobs:
 
           echo -e "\nEnabling Corepack for Yarn"
           sudo corepack enable
+          sudo corepack prepare yarn@stable --activate
+
           echo -e "\nNode Version: $(node -v)"
           echo "Yarn version: $(yarn -v)"
 
@@ -147,7 +149,7 @@ jobs:
       - name: Second sweep from yarn.lock (prime Verdaccio tarball cache)
         run: bash secondary-sweep.sh
 
-      - name: Listings
+      - name: Module Listings
         run: |
           echo -e "\nListing verdaccio"
           tree -d verdaccio
@@ -225,6 +227,8 @@ jobs:
       - name: Enable Corepack
         run: |
           sudo corepack enable
+          sudo corepack prepare yarn@stable --activate
+
           echo "Node Version: $(node -v)"
           echo "Yarn Version: $(yarn -v)"
 
@@ -313,7 +317,6 @@ jobs:
             echo ""
             echo "## Trivy Filesystem Scan"
             echo ""
-
             if [ -f trivy-report.txt ]; then
               echo "### Top Trivy Findings"
               echo '```'
@@ -380,13 +383,48 @@ jobs:
           echo -e "\nDownloading yarnpkgs:"
           mkdir -p ISO/yarnpkg
           cd ISO/yarnpkg
-          for RELEASE_TAG in 4.12.0 4.10.2 4.5.3; do
-            for FILE in js js.sign js.pem; do
-              curl -sSLw "Downloaded yarn-$RELEASE_TAG.$FILE (%{http_code}: %{size_download}B)\n" \
-                https://repo.yarnpkg.com/$RELEASE_TAG/packages/yarnpkg-cli/bin/yarn.$FILE \
-                -o yarn-${RELEASE_TAG}.$FILE
-            done
+          
+          get_latest_patch() {
+            local stream="$1"
+
+            curl -fsSL https://api.github.com/repos/yarnpkg/berry/releases \
+              | jq -r '.[].tag_name' \
+              | sed 's|@yarnpkg/cli/||' \
+              | grep "^${stream}\." \
+              | sort -V \
+              | tail -1
+          }
+
+          get_tarball_url() {
+            local version="$1"
+
+            curl -fsSL "https://registry.npmjs.org/@yarnpkg/cli/${version}" \
+              | jq -r '.dist.tarball'
+          }
+
+          STREAMS=(
+            "4"
+            "4.17"
+            "4.12"
+            "4.10"
+          )
+
+          mkdir yarn-mirror
+          cd yarn-mirror
+
+          for STREAM in "${STREAMS[@]}"; do
+            VERSION=$(get_latest_patch "$STREAM")
+
+            echo "Resolved ${STREAM} -> ${VERSION}"
+
+            URL=$(get_tarball_url "$VERSION")
+
+            curl -fLsS \
+              -o "@yarnpkg-cli-${VERSION}.tgz" \
+              "$URL"
           done
+
+          sha256sum -b *.tgz | tee yarnpkg.sha
           echo -e "\nListing downloaded files:\n$(ls -1Ssh)"
           echo -e "\nHashing Files:"
           sha256sum -b * | tee yarnpkg.sha
@@ -398,6 +436,33 @@ jobs:
         run: |
           mkdir -p ISO/app
           cp -v package.json ISO/
+
+      - name: Package source repository into ISO
+        run: |
+          echo -e "\nPackaging source repository"
+
+          mkdir -p ISO/source
+
+          # Create a clean source snapshot from the checked-out commit.
+          # This excludes the .git directory and generated ISO staging/output files.
+          tar \
+            --exclude='.git' \
+            --exclude='ISO' \
+            --exclude='node_modules' \
+            --exclude='verdaccio' \
+            --exclude='*.tgz' \
+            --exclude='*.iso' \
+            --exclude='*.sha' \
+            --exclude='*.txt' \
+            -czvf ISO/source/${{ vars.COLLECTOR }}-source-${{ needs.Setup.outputs.Date }}.tgz \
+            .
+
+          cd ISO/source
+          sha256sum -b ${{ vars.COLLECTOR }}-source-${{ needs.Setup.outputs.Date }}.tgz \
+            | tee ${{ vars.COLLECTOR }}-source-${{ needs.Setup.outputs.Date }}.tgz.sha
+
+          echo -e "\nSource package:"
+          ls -1Ssh
 
       - name: Show Artifacts
         run: |

@@ -17,7 +17,7 @@ jobs:
       v24: ${{ steps.v.outputs.v24 }}
     steps:
       - name: Get current date
-        id: DATE
+        id: Date
         run: |
           echo -n "Getting Date: "
           echo "DATE=$(date '+%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
@@ -239,6 +239,11 @@ jobs:
         run: |
           tar -xzvf ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz
 
+      - name: Configure Yarn for offline cache
+        run: |
+          yarn config set enableGlobalCache false
+          yarn config set nodeLinker node-modules
+
       - name: Install dependencies from offline cache
         run: |
           yarn install --immutable --immutable-cache
@@ -280,6 +285,7 @@ jobs:
 
             echo "## Grype SBOM Scan"
             echo ""
+
             if [ -f grype-report.txt ]; then
               echo "### Severity Counts"
               awk '
@@ -375,13 +381,48 @@ jobs:
           echo -e "\nDownloading yarnpkgs:"
           mkdir -p ISO/yarnpkg
           cd ISO/yarnpkg
-          for RELEASE_TAG in 4.12.0 4.10.2 4.5.3; do
-            for FILE in js js.sign js.pem; do
-              curl -sSLw "Downloaded yarn-$RELEASE_TAG.$FILE (%{http_code}: %{size_download}B)\n" \
-                https://repo.yarnpkg.com/$RELEASE_TAG/packages/yarnpkg-cli/bin/yarn.$FILE \
-                -o yarn-${RELEASE_TAG}.$FILE
-            done
+          
+          get_latest_patch() {
+            local stream="$1"
+
+            curl -fsSL https://api.github.com/repos/yarnpkg/berry/releases \
+              | jq -r '.[].tag_name' \
+              | sed 's|@yarnpkg/cli/||' \
+              | grep "^${stream}\." \
+              | sort -V \
+              | tail -1
+          }
+
+          get_tarball_url() {
+            local version="$1"
+
+            curl -fsSL "https://registry.npmjs.org/@yarnpkg/cli/${version}" \
+              | jq -r '.dist.tarball'
+          }
+
+          STREAMS=(
+            "4"
+            "4.17"
+            "4.12"
+            "4.10"
+          )
+
+          mkdir yarn-mirror
+          cd yarn-mirror
+
+          for STREAM in "${STREAMS[@]}"; do
+            VERSION=$(get_latest_patch "$STREAM")
+
+            echo "Resolved ${STREAM} -> ${VERSION}"
+
+            URL=$(get_tarball_url "$VERSION")
+
+            curl -fLsS \
+              -o "@yarnpkg-cli-${VERSION}.tgz" \
+              "$URL"
           done
+
+          sha256sum -b *.tgz | tee yarnpkg.sha
           echo -e "\nListing downloaded files:\n$(ls -1Ssh)"
           echo -e "\nHashing Files:"
           sha256sum -b * | tee yarnpkg.sha
