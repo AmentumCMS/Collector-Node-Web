@@ -275,9 +275,7 @@ jobs:
           yarn config get npmRegistryServer
 
           echo -e "\nRunning Yarn"
-          yarn install --refresh-lockfile
           corepack pack -o .yarn/yarn-pack.tar.gz
-
           yarn install --immutable --immutable-cache
 
       - name: Security - Generate app SBOM
@@ -659,7 +657,7 @@ jobs:
           export XDG_DATA_HOME=$PWD
 
           echo -e "\nStarting Verdaccio"
-          yarn dlx verdaccio --offline >\
+          yarn dlx verdaccio >\
             verdaccio/verdaccio.log 2>\
             verdaccio/verdaccio-err.log &
 
@@ -697,6 +695,13 @@ jobs:
         run: |
           echo -e "Run Yarn"
           yarn run
+
+      - name: Verdaccio Logs
+        run: |
+          echo -e "\nVerdaccio log files:"
+          ls -1Ssh verdaccio/*.log || echo "No Verdaccio log files found"
+          echo -e "\nYarn log files:"
+          cat verdaccio/*.log
 
   Release:
     runs-on: ubuntu-latest
