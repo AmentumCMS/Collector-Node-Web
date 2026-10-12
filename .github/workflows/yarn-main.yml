@@ -610,6 +610,12 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y isomd5sum
 
+      - name: Check out repository code
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+          lfs: true
+
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v7
         with:
@@ -618,13 +624,10 @@ jobs:
       - name: Enable Corepack
         run: |
           sudo corepack enable
-          sudo corepack prepare yarn@stable --activate
+          sudo corepack prepare yarn@latest --activate
 
           echo "Node Version: $(node -v)"
           echo "Yarn Version: $(yarn -v)"
-
-      - name: Check out repository code
-        uses: actions/checkout@v7
 
       - name: Download ISO and hash
         uses: actions/download-artifact@v8
@@ -654,6 +657,7 @@ jobs:
       - name: Run yarn install
         run: |
           export XDG_DATA_HOME=$PWD
+
           echo -e "\nStarting Verdaccio"
           yarn dlx verdaccio --offline >\
             verdaccio/verdaccio.log 2>\
