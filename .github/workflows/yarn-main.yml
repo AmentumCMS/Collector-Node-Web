@@ -224,7 +224,12 @@ jobs:
       - name: Restore Yarn cache artifact
         uses: actions/download-artifact@v8
         with:
-          name: ${{ vars.COLLECTOR }}-{yarn|verdaccio}-${{ needs.Setup.outputs.Date }}.tgz
+          name: ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz
+
+      - name: Restore verdaccio artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz
 
       - name: Extract Yarn cache
         run: |
