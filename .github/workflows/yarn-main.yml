@@ -278,7 +278,7 @@ jobs:
           yarn install --refresh-lockfile
           corepack pack -o .yarn/yarn-pack.tar.gz
 
-          yarn install --immutable --immutable-cache --offline
+          yarn install --immutable --immutable-cache
 
       - name: Security - Generate app SBOM
         uses: anchore/sbom-action@v0
