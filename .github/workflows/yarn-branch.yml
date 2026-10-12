@@ -245,7 +245,7 @@ jobs:
           export XDG_DATA_HOME=$PWD
 
           echo -e "\nStarting Verdaccio"
-          yarn dlx verdaccio --offline >\
+          yarn dlx verdaccio --config offline.yaml >\
             verdaccio/verdaccio.log 2>\
             verdaccio/verdaccio-err.log &
 
