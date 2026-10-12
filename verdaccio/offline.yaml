@@ -1,0 +1,17 @@
+storage: ./verdaccio/storage
+plugins: ./verdaccio/plugins
+
+uplinks: {}
+
+packages:
+  '@*/*':
+    access: $all
+    publish: $authenticated
+
+  '**':
+    access: $all
+
+log:
+  type: stdout
+  format: pretty
+  level: http
