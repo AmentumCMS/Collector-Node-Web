@@ -112,14 +112,14 @@ jobs:
           tail -n +1 verdaccio/verdaccio-err.log || true
           echo -e "\nVerdaccio is ready. Proceeding with Yarn install."
 
-          # Create a deterministic .yarnrc.yml for Berry
+          # Create a deterministic .yarnrc.yml
           sed -i 's/^# //' .yarnrc.yml .npmrc 
 
           # cat >> .npmrc <<'NPMRC'
           # strict-ssl=false
           # NPMRC
 
-          echo -en "\nVerify Berry sees the registry we set: "
+          echo -en "\nVerify Yarn registry: "
           yarn config get npmRegistryServer
 
           echo -e "\nRunning Yarn"
@@ -634,10 +634,44 @@ jobs:
         run: tar -xzvf /mnt/${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date
           }}.tgz
 
+      - name: UnTARchive Verdaccio Storage
+        run: tar -xzvf /mnt/${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date
+          }}.tgz
+
       - name: Run yarn install
         run: |
+          export XDG_DATA_HOME=$PWD
           echo -e "Setup Yarn"
           sudo corepack enable
+          
+          echo -e "\nStarting Verdaccio"
+          yarn dlx verdaccio >\
+            verdaccio/verdaccio.log 2>\
+            verdaccio/verdaccio-err.log &
+
+          # Wait until Verdaccio is ready (adjust if needed)
+          echo -n "Waiting for Verdaccio to be ready: "
+          for i in {1..30}; do
+            if curl -sw "$i " http://localhost:4873/ -o /dev/null; then break; fi
+            sleep 1
+          done
+
+          echo -e "\nTailing Verdaccio startup logs (last 50 lines)"
+          tail -n 50 verdaccio/verdaccio.log || true
+          echo -e "\nVerdaccio errors (if any)"
+          tail -n +1 verdaccio/verdaccio-err.log || true
+          echo -e "\nVerdaccio is ready. Proceeding with Yarn install."
+
+          # Create a deterministic .yarnrc.yml for Berry
+          sed -i 's/^# //' .yarnrc.yml .npmrc 
+
+          # cat >> .npmrc <<'NPMRC'
+          # strict-ssl=false
+          # NPMRC
+
+          echo -en "\nVerify Berry sees the registry we set: "
+          yarn config get npmRegistryServer
+
           echo -e "Configure Yarn for inaccessable network"
           npm set registry http://localhost:4873/
           yarn config set npmRegistryServer http://localhost:4873/
