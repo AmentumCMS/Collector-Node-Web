@@ -115,14 +115,11 @@ jobs:
           echo -e "\nVerdaccio is ready. Proceeding with Yarn install."
 
           # Create a deterministic .yarnrc.yml for Berry
-          cat >> .yarnrc.yml <<'YRC'
-          npmRegistryServer: "http://localhost:4873"
-          YRC
+          sed -i 's/^# //' .yarnrc.yml .npmrc 
 
-          cat >> .npmrc <<'NPMRC'
-          registry=http://localhost:4873
-          strict-ssl=false
-          NPMRC
+          # cat >> .npmrc <<'NPMRC'
+          # strict-ssl=false
+          # NPMRC
 
           echo -en "\nVerify Berry sees the registry we set: "
           yarn config get npmRegistryServer
