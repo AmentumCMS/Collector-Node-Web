@@ -103,7 +103,7 @@ jobs:
           export XDG_DATA_HOME=$PWD
 
           echo -e "\nStarting Verdaccio"
-          yarn dlx verdaccio >\
+          yarn dlx verdaccio@5 >\
             verdaccio/verdaccio.log 2>\
             verdaccio/verdaccio-err.log &
 
