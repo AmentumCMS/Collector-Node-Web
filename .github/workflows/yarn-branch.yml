@@ -245,7 +245,7 @@ jobs:
           export XDG_DATA_HOME=$PWD
 
           echo -e "\nStarting Verdaccio"
-          yarn dlx verdaccio >\
+          yarn dlx verdaccio --offline >\
             verdaccio/verdaccio.log 2>\
             verdaccio/verdaccio-err.log &
 
@@ -631,12 +631,11 @@ jobs:
           }}.iso /mnt
 
       - name: UnTARchive Yarn Cache
-        run: tar -xzvf /mnt/${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date
-          }}.tgz
+        run: |
+          tar -xzvf /mnt/${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz
 
       - name: UnTARchive Verdaccio Storage
-        run: tar -xzvf /mnt/${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date
-          }}.tgz
+        run: tar -xzvf /mnt/${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz
 
       - name: Run yarn install
         run: |
@@ -645,7 +644,7 @@ jobs:
           sudo corepack enable
           
           echo -e "\nStarting Verdaccio"
-          yarn dlx verdaccio >\
+          yarn dlx verdaccio --offline >\
             verdaccio/verdaccio.log 2>\
             verdaccio/verdaccio-err.log &
 
