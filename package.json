@@ -72,8 +72,7 @@
     "vitest": "^3.2.4",
     "webpack": "^5.106.2",
     "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^5.2.2",
-    "yarn": "^4.17.0"
+    "webpack-dev-server": "^5.2.2"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
