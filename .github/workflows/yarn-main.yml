@@ -246,26 +246,26 @@ jobs:
         run: |
           export XDG_DATA_HOME=$PWD
 
-          echo -e "\nStarting Verdaccio"
-          yarn dlx verdaccio >\
-            verdaccio/verdaccio.log 2>\
-            verdaccio/verdaccio-err.log &
+          # echo -e "\nStarting Verdaccio"
+          # yarn dlx verdaccio >\
+          #   verdaccio/verdaccio.log 2>\
+          #   verdaccio/verdaccio-err.log &
 
-          # Wait until Verdaccio is ready (adjust if needed)
-          echo -n "Waiting for Verdaccio to be ready: "
-          for i in {1..30}; do
-            if curl -sw "$i " http://localhost:4873/ -o /dev/null; then break; fi
-            sleep 1
-          done
+          # # Wait until Verdaccio is ready (adjust if needed)
+          # echo -n "Waiting for Verdaccio to be ready: "
+          # for i in {1..30}; do
+          #   if curl -sw "$i " http://localhost:4873/ -o /dev/null; then break; fi
+          #   sleep 1
+          # done
 
-          echo -e "\nTailing Verdaccio startup logs (last 50 lines)"
-          tail -n 50 verdaccio/verdaccio.log || true
-          echo -e "\nVerdaccio errors (if any)"
-          tail -n +1 verdaccio/verdaccio-err.log || true
-          echo -e "\nVerdaccio is ready. Proceeding with Yarn install."
+          # echo -e "\nTailing Verdaccio startup logs (last 50 lines)"
+          # tail -n 50 verdaccio/verdaccio.log || true
+          # echo -e "\nVerdaccio errors (if any)"
+          # tail -n +1 verdaccio/verdaccio-err.log || true
+          # echo -e "\nVerdaccio is ready. Proceeding with Yarn install."
 
           # Create a deterministic .yarnrc.yml for Berry
-          sed -i 's/^# //' .yarnrc.yml .npmrc 
+          # sed -i 's/^# //' .yarnrc.yml .npmrc 
 
           # cat >> .npmrc <<'NPMRC'
           # strict-ssl=false
