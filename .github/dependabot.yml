@@ -28,3 +28,12 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+      groups:
+    all-actions:
+      patterns:
+        - "*"
+    ignore:
+    - dependency-name: "*"
+      update-types:
+        - "version-update:semver-minor"
+        - "version-update:semver-patch"

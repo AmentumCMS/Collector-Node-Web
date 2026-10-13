@@ -13,13 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       Date: ${{ steps.date.outputs.date }}
-      v18: ${{ steps.v.outputs.v18 }}
-      v20: ${{ steps.v.outputs.v20 }}
-      v22: ${{ steps.v.outputs.v22 }}
       v24: ${{ steps.v.outputs.v24 }}
+      v26: ${{ steps.v.outputs.v26 }}
     steps:
       - name: Get current date
-        id: date
+        id: Date
         run: |
           echo -n "Getting Date: "
           echo "DATE=$(date '+%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
@@ -43,21 +41,15 @@ jobs:
                 '[.[] | select(.version | startswith($major_version))][0].version'
           }
 
-          # Fetch the latest versions for v18, v20, v22, and v24
-          v18=$(get_version 18)
-          v20=$(get_version 20)
-          v22=$(get_version 22)
+          # Fetch the latest versions for v24, and v26
           v24=$(get_version 24)
+          v26=$(get_version 26)
 
-          echo "The latest Node.js v18 version is: $v18"
-          echo "The latest Node.js v20 version is: $v20"
-          echo "The latest Node.js v22 version is: $v22"
           echo "The latest Node.js v24 version is: $v24"
+          echo "The latest Node.js v26 version is: $v26"
 
-          echo "v18=${v18}" >> $GITHUB_OUTPUT
-          echo "v20=${v20}" >> $GITHUB_OUTPUT
-          echo "v22=${v22}" >> $GITHUB_OUTPUT
           echo "v24=${v24}" >> $GITHUB_OUTPUT
+          echo "v26=${v26}" >> $GITHUB_OUTPUT
 
           echo -e "\nFile:\n$GITHUB_OUTPUT"
           echo "Values:"
@@ -78,10 +70,10 @@ jobs:
           submodules: true
           lfs: true
 
-      - name: Use Node.js ${{ needs.Setup.outputs.v18 }}
+      - name: Use Node.js ${{ needs.Setup.outputs.v24 }}
         uses: actions/setup-node@v7
         with:
-          node-version: ${{ needs.Setup.outputs.v18 }}
+          node-version: ${{ needs.Setup.outputs.v24 }}
 
       - name: Enable Corepack
         run: |
@@ -90,6 +82,8 @@ jobs:
 
           echo -e "\nEnabling Corepack for Yarn"
           sudo corepack enable
+          sudo corepack prepare yarn@latest --activate
+
           echo -e "\nNode Version: $(node -v)"
           echo "Yarn version: $(yarn -v)"
 
@@ -120,17 +114,14 @@ jobs:
           tail -n +1 verdaccio/verdaccio-err.log || true
           echo -e "\nVerdaccio is ready. Proceeding with Yarn install."
 
-          # Create a deterministic .yarnrc.yml for Berry
-          cat >> .yarnrc.yml <<'YRC'
-          npmRegistryServer: "http://localhost:4873"
-          YRC
+          # Create a deterministic .yarnrc.yml
+          sed -i 's/^# //' .yarnrc.yml .npmrc 
 
-          cat >> .npmrc <<'NPMRC'
-          registry=http://localhost:4873
-          strict-ssl=false
-          NPMRC
+          # cat >> .npmrc <<'NPMRC'
+          # strict-ssl=false
+          # NPMRC
 
-          echo -en "\nVerify Berry sees the registry we set: "
+          echo -en "\nVerify Yarn registry: "
           yarn config get npmRegistryServer
 
           echo -e "\nRunning Yarn"
@@ -147,7 +138,7 @@ jobs:
       - name: Second sweep from yarn.lock (prime Verdaccio tarball cache)
         run: bash secondary-sweep.sh
 
-      - name: Listings
+      - name: Module Listings
         run: |
           echo -e "\nListing verdaccio"
           tree -d verdaccio
@@ -217,14 +208,16 @@ jobs:
           submodules: true
           lfs: true
 
-      - name: Use Node.js ${{ needs.Setup.outputs.v18 }}
+      - name: Use Node.js ${{ needs.Setup.outputs.v24 }}
         uses: actions/setup-node@v7
         with:
-          node-version: ${{ needs.Setup.outputs.v18 }}
+          node-version: ${{ needs.Setup.outputs.v24 }}
 
       - name: Enable Corepack
         run: |
           sudo corepack enable
+          sudo corepack prepare yarn@stable --activate
+
           echo "Node Version: $(node -v)"
           echo "Yarn Version: $(yarn -v)"
 
@@ -233,9 +226,16 @@ jobs:
         with:
           name: ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz
 
-      - name: Extract Yarn cache
+      - name: Restore verdaccio artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz
+
+      - name: Extract caches
         run: |
-          tar -xzvf ${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz
+          for tgz in *.tgz; do
+            tar -xzvf "$tgz"
+          done
 
       - name: Configure Yarn for offline cache
         run: |
@@ -244,6 +244,38 @@ jobs:
 
       - name: Install dependencies from offline cache
         run: |
+          export XDG_DATA_HOME=$PWD
+
+          # echo -e "\nStarting Verdaccio"
+          # yarn dlx verdaccio >\
+          #   verdaccio/verdaccio.log 2>\
+          #   verdaccio/verdaccio-err.log &
+
+          # # Wait until Verdaccio is ready (adjust if needed)
+          # echo -n "Waiting for Verdaccio to be ready: "
+          # for i in {1..30}; do
+          #   if curl -sw "$i " http://localhost:4873/ -o /dev/null; then break; fi
+          #   sleep 1
+          # done
+
+          # echo -e "\nTailing Verdaccio startup logs (last 50 lines)"
+          # tail -n 50 verdaccio/verdaccio.log || true
+          # echo -e "\nVerdaccio errors (if any)"
+          # tail -n +1 verdaccio/verdaccio-err.log || true
+          # echo -e "\nVerdaccio is ready. Proceeding with Yarn install."
+
+          # Create a deterministic .yarnrc.yml for Berry
+          # sed -i 's/^# //' .yarnrc.yml .npmrc 
+
+          # cat >> .npmrc <<'NPMRC'
+          # strict-ssl=false
+          # NPMRC
+
+          echo -en "\nVerify Berry sees the registry we set: "
+          yarn config get npmRegistryServer
+
+          echo -e "\nRunning Yarn"
+          corepack pack -o .yarn/yarn-pack.tar.gz
           yarn install --immutable --immutable-cache
 
       - name: Security - Generate app SBOM
@@ -313,7 +345,6 @@ jobs:
             echo ""
             echo "## Trivy Filesystem Scan"
             echo ""
-
             if [ -f trivy-report.txt ]; then
               echo "### Top Trivy Findings"
               echo '```'
@@ -363,7 +394,7 @@ jobs:
           echo -e "\nDownloading installers"
           mkdir -p ISO/runtimes
           cd ISO/runtimes
-          for VERSION in ${{ needs.Setup.outputs.v18 }} ${{ needs.Setup.outputs.v20 }} ${{ needs.Setup.outputs.v22 }} ${{ needs.Setup.outputs.v24 }}; do
+          for VERSION in ${{ needs.Setup.outputs.v24 }} ${{ needs.Setup.outputs.v26 }}; do
             echo -e "\nDownloading Node.js $VERSION"
             for FILE in x64.msi win-x64.zip linux-x64.tar.xz; do
               curl -sSLw "Downloaded node-${VERSION}-${FILE} (%{http_code}: %{size_download}B)\n"\
@@ -380,13 +411,47 @@ jobs:
           echo -e "\nDownloading yarnpkgs:"
           mkdir -p ISO/yarnpkg
           cd ISO/yarnpkg
-          for RELEASE_TAG in 4.12.0 4.10.2 4.5.3; do
-            for FILE in js js.sign js.pem; do
-              curl -sSLw "Downloaded yarn-$RELEASE_TAG.$FILE (%{http_code}: %{size_download}B)\n" \
-                https://repo.yarnpkg.com/$RELEASE_TAG/packages/yarnpkg-cli/bin/yarn.$FILE \
-                -o yarn-${RELEASE_TAG}.$FILE
-            done
+          
+          get_latest_patch() {
+            local stream="$1"
+
+            curl -fsSL https://api.github.com/repos/yarnpkg/berry/releases \
+              | jq -r '.[].tag_name' \
+              | sed 's|@yarnpkg/cli/||' \
+              | grep "^${stream}\." \
+              | sort -V \
+              | tail -1
+          }
+
+          get_tarball_url() {
+            local version="$1"
+
+            curl -fsSL "https://registry.npmjs.org/@yarnpkg/cli/${version}" \
+              | jq -r '.dist.tarball'
+          }
+
+          STREAMS=(
+            "4"
+            "4.17"
+            "4.12"
+          )
+
+          mkdir yarn-mirror
+          cd yarn-mirror
+
+          for STREAM in "${STREAMS[@]}"; do
+            VERSION=$(get_latest_patch "$STREAM")
+
+            echo "Resolved ${STREAM} -> ${VERSION}"
+
+            URL=$(get_tarball_url "$VERSION")
+
+            curl -fLsS \
+              -o "@yarnpkg-cli-${VERSION}.tgz" \
+              "$URL"
           done
+
+          sha256sum -b *.tgz | tee yarnpkg.sha
           echo -e "\nListing downloaded files:\n$(ls -1Ssh)"
           echo -e "\nHashing Files:"
           sha256sum -b * | tee yarnpkg.sha
@@ -398,6 +463,33 @@ jobs:
         run: |
           mkdir -p ISO/app
           cp -v package.json ISO/
+
+      - name: Package source repository into ISO
+        run: |
+          echo -e "\nPackaging source repository"
+
+          mkdir -p ISO/source
+
+          # Create a clean source snapshot from the checked-out commit.
+          # This excludes the .git directory and generated ISO staging/output files.
+          tar \
+            --exclude='.git' \
+            --exclude='ISO' \
+            --exclude='node_modules' \
+            --exclude='verdaccio' \
+            --exclude='*.tgz' \
+            --exclude='*.iso' \
+            --exclude='*.sha' \
+            --exclude='*.txt' \
+            -czvf ISO/source/${{ vars.COLLECTOR }}-source-${{ needs.Setup.outputs.Date }}.tgz \
+            .
+
+          cd ISO/source
+          sha256sum -b ${{ vars.COLLECTOR }}-source-${{ needs.Setup.outputs.Date }}.tgz \
+            | tee ${{ vars.COLLECTOR }}-source-${{ needs.Setup.outputs.Date }}.tgz.sha
+
+          echo -e "\nSource package:"
+          ls -1Ssh
 
       - name: Show Artifacts
         run: |
@@ -509,7 +601,7 @@ jobs:
       pull-requests: read
     strategy:
       matrix:
-        node-version: [ 18.x, 20.x, 22.x, 24.x ]
+        node-version: [ 24.x , 26.x ]
     steps:
       - name: Install isomd5sum
         run: |
@@ -518,6 +610,22 @@ jobs:
 
       - name: Check out repository code
         uses: actions/checkout@v7
+        with:
+          submodules: true
+          lfs: true
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Enable Corepack
+        run: |
+          sudo corepack enable
+          sudo corepack prepare yarn@latest --activate
+
+          echo "Node Version: $(node -v)"
+          echo "Yarn Version: $(yarn -v)"
 
       - name: Download ISO and hash
         uses: actions/download-artifact@v8
@@ -535,17 +643,47 @@ jobs:
           sha256sum -cw ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso.sha
 
       - name: Mount ISO
-        run: sudo mount -v -o loop ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date
-          }}.iso /mnt
+        run: sudo mount -v -o loop ${{ vars.COLLECTOR }}-${{ needs.Setup.outputs.Date }}.iso /mnt
 
       - name: UnTARchive Yarn Cache
-        run: tar -xzvf /mnt/${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date
-          }}.tgz
+        run: |
+          tar -xzvC . -f /mnt/${{ vars.COLLECTOR }}-yarn-${{ needs.Setup.outputs.Date }}.tgz
+
+      - name: UnTARchive Verdaccio Storage
+        run: tar -xzvC . -f /mnt/${{ vars.COLLECTOR }}-verdaccio-${{ needs.Setup.outputs.Date }}.tgz
 
       - name: Run yarn install
         run: |
-          echo -e "Setup Yarn"
-          sudo corepack enable
+          export XDG_DATA_HOME=$PWD
+
+          echo -e "\nStarting Verdaccio"
+          yarn dlx verdaccio >\
+            verdaccio/verdaccio.log 2>\
+            verdaccio/verdaccio-err.log &
+
+          # Wait until Verdaccio is ready (adjust if needed)
+          echo -n "Waiting for Verdaccio to be ready: "
+          for i in {1..30}; do
+            if curl -sw "$i " http://localhost:4873/ -o /dev/null; then break; fi
+            sleep 1
+          done
+
+          echo -e "\nTailing Verdaccio startup logs (last 50 lines)"
+          tail -n 50 verdaccio/verdaccio.log || true
+          echo -e "\nVerdaccio errors (if any)"
+          tail -n +1 verdaccio/verdaccio-err.log || true
+          echo -e "\nVerdaccio is ready. Proceeding with Yarn install."
+
+          # Create a deterministic .yarnrc.yml for Berry
+          sed -i 's/^# //' .yarnrc.yml .npmrc 
+
+          # cat >> .npmrc <<'NPMRC'
+          # strict-ssl=false
+          # NPMRC
+
+          echo -en "\nVerify Berry sees the registry we set: "
+          yarn config get npmRegistryServer
+
           echo -e "Configure Yarn for inaccessable network"
           npm set registry http://localhost:4873/
           yarn config set npmRegistryServer http://localhost:4873/
@@ -557,6 +695,13 @@ jobs:
         run: |
           echo -e "Run Yarn"
           yarn run
+
+      - name: Verdaccio Logs
+        run: |
+          echo -e "\nVerdaccio log files:"
+          ls -1Ssh verdaccio/*.log || echo "No Verdaccio log files found"
+          echo -e "\nYarn log files:"
+          cat verdaccio/*.log
 
   Release:
     runs-on: ubuntu-latest
