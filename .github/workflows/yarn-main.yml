@@ -78,10 +78,10 @@ jobs:
           submodules: true
           lfs: true
 
-      - name: Use Node.js ${{ needs.Setup.outputs.v18 }}
+      - name: Use Node.js ${{ needs.Setup.outputs.v24 }}
         uses: actions/setup-node@v6
         with:
-          node-version: ${{ needs.Setup.outputs.v18 }}
+          node-version: ${{ needs.Setup.outputs.v24 }}
 
       - name: Enable Corepack
         run: |
@@ -218,10 +218,10 @@ jobs:
           submodules: true
           lfs: true
 
-      - name: Use Node.js ${{ needs.Setup.outputs.v18 }}
+      - name: Use Node.js ${{ needs.Setup.outputs.v24 }}
         uses: actions/setup-node@v6
         with:
-          node-version: ${{ needs.Setup.outputs.v18 }}
+          node-version: ${{ needs.Setup.outputs.v24 }}
 
       - name: Enable Corepack
         run: |
