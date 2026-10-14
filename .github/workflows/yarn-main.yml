@@ -125,6 +125,7 @@ jobs:
           yarn config get npmRegistryServer
 
           echo -e "\nRunning Yarn"
+          yarn config set enableGlobalCache false
           yarn install --refresh-lockfile
           corepack pack -o .yarn/yarn-pack.tar.gz
 
